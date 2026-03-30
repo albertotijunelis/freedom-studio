@@ -24,6 +24,10 @@
 </p>
 
 <p align="center">
+  <a href="https://freedomstudio.app"><strong>🌐 freedomstudio.app</strong></a>
+</p>
+
+<p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-00ff88?style=flat-square&logo=gnu" alt="License: GPL-3.0"></a>
   <a href="#"><img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-0a0a0a?style=flat-square&logo=electron&logoColor=00ff88" alt="Platform"></a>
   <a href="#"><img src="https://img.shields.io/badge/status-active%20development-00d4ff?style=flat-square" alt="Status"></a>
@@ -109,13 +113,47 @@
 
 ## Screenshots
 
-> *Screenshots coming soon — the app is in active development.*
+<p align="center">
+  <img src="docs/screenshots/screenshot-chat.png" alt="Freedom Studio — Chat Interface" width="100%">
+</p>
+<p align="center"><em>Chat with local AI models. Streaming responses, Markdown rendering, code blocks, and system prompts.</em></p>
 
-`[screenshot: setup wizard]`
-`[screenshot: chat interface]`
-`[screenshot: model manager]`
-`[screenshot: api server panel]`
-`[screenshot: settings with tor]`
+<details>
+<summary><strong>More screenshots</strong></summary>
+
+<br>
+
+**HuggingFace Model Browser**
+<p align="center">
+  <img src="docs/screenshots/screenshot-browser.png" alt="Freedom Studio — HuggingFace Browser" width="100%">
+</p>
+
+**Local Model Manager**
+<p align="center">
+  <img src="docs/screenshots/screenshot-models.png" alt="Freedom Studio — Model Manager" width="100%">
+</p>
+
+**OpenAI-Compatible API Server**
+<p align="center">
+  <img src="docs/screenshots/screenshot-api.png" alt="Freedom Studio — API Server" width="100%">
+</p>
+
+**Settings — GPU Detection & Inference Parameters**
+<p align="center">
+  <img src="docs/screenshots/screenshot-setings-1.png" alt="Freedom Studio — Settings" width="100%">
+</p>
+
+**Settings — Advanced Configuration**
+<p align="center">
+  <img src="docs/screenshots/screenshot-settings-2.png" alt="Freedom Studio — Settings Advanced" width="100%">
+</p>
+
+**Master Password Lock Screen**
+<p align="center">
+  <img src="docs/screenshots/screenshot-master-password.png" alt="Freedom Studio — Master Password" width="100%">
+</p>
+
+</details>
 
 ---
 
