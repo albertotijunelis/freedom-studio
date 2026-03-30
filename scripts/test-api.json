@@ -1,0 +1,6 @@
+{
+  "model": "C:\\Users\\alber\\Downloads\\Llama-3.2-1B-Instruct-Q4_K_M.gguf",
+  "messages": [{"role": "user", "content": "Say hello in one sentence."}],
+  "stream": false,
+  "max_tokens": 50
+}

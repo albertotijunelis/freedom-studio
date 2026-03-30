@@ -1,0 +1,40 @@
+/* Freedom Studio — Copyright (C) 2026 Alberto Tijunelis Neto <albertotijunelis@gmail.com> */
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+
+:root {
+  /* Backgrounds */
+  --bg-void:        #000000;
+  --bg-dark:        #0a0a0a;
+  --bg-surface:     #111111;
+  --bg-glass:       rgba(10, 10, 10, 0.72);
+
+  /* Borders */
+  --border-subtle:  rgba(255, 255, 255, 0.06);
+  --border-accent:  rgba(0, 255, 136, 0.3);
+
+  /* Accent Colors */
+  --accent-green:   #00ff88;
+  --accent-cyan:    #00d4ff;
+  --accent-red:     #ff3355;
+  --accent-yellow:  #ffcc00;
+  --accent-purple:  #9945ff;
+
+  /* Text */
+  --text-primary:   #f0f0f0;
+  --text-secondary: #888888;
+  --text-muted:     #444444;
+  --text-code:      #00ff88;
+
+  /* Radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 16px;
+
+  /* Effects */
+  --blur-glass: blur(20px) saturate(180%);
+
+  /* Shadows */
+  --glow-green: 0 0 8px var(--accent-green);
+  --glow-cyan:  0 0 8px var(--accent-cyan);
+  --glow-red:   0 0 8px var(--accent-red);
+}

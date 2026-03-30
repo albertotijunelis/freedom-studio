@@ -1,0 +1,24 @@
+{
+  "name": "@freedom-studio/types",
+  "version": "0.1.0-dev",
+  "private": true,
+  "description": "Shared TypeScript type definitions for Freedom Studio",
+  "license": "GPL-3.0-or-later",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "echo \"No tests yet\"",
+    "clean": "rimraf dist"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  }
+}

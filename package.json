@@ -1,0 +1,32 @@
+{
+  "name": "freedom-studio",
+  "version": "0.1.0-dev",
+  "private": true,
+  "description": "Open-source, local-first AI model runner — privacy-first alternative to LM Studio",
+  "author": "Alberto Tijunelis Neto <albertotijunelis@gmail.com>",
+  "license": "GPL-3.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/albertotijunelis/freedom-studio.git"
+  },
+  "scripts": {
+    "dev": "turbo run dev --filter=@freedom-studio/desktop",
+    "dev:renderer": "turbo run dev:renderer --filter=@freedom-studio/desktop",
+    "build": "turbo run build",
+    "build:win": "turbo run build:win --filter=@freedom-studio/desktop",
+    "build:mac": "turbo run build:mac --filter=@freedom-studio/desktop",
+    "build:linux": "turbo run build:linux --filter=@freedom-studio/desktop",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "lint": "turbo run lint",
+    "clean": "turbo run clean"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.0"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  }
+}
