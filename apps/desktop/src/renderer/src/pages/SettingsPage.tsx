@@ -201,6 +201,93 @@ export function SettingsPage(): React.JSX.Element {
           />
         </SettingRow>
 
+        {/* ── Generation ── */}
+        <SectionHeader title="Generation" />
+
+        <SettingRow label="Max Tokens" description="Maximum tokens to generate per response (higher = longer answers)">
+          <NumberInput
+            value={settings.defaultMaxTokens}
+            onChange={(val) => { settings.setMaxTokens(val); handleSave('defaultMaxTokens', String(val)); }}
+            min={64}
+            max={131072}
+          />
+        </SettingRow>
+
+        <SettingRow label="Temperature" description="Randomness of output (0 = deterministic, 2 = very random)">
+          <div className="flex items-center gap-2">
+            <input
+              type="range"
+              min={0}
+              max={2}
+              step={0.05}
+              value={settings.defaultTemperature}
+              onChange={(e) => {
+                const val = parseFloat(e.target.value);
+                settings.setTemperature(val);
+                handleSave('defaultTemperature', String(val));
+              }}
+              className="w-24 accent-green-500"
+              style={{ accentColor: 'var(--accent-green)' }}
+            />
+            <span className="text-xs w-8 text-right" style={{ color: 'var(--text-secondary)', fontFamily: "'JetBrains Mono', monospace" }}>
+              {settings.defaultTemperature.toFixed(2)}
+            </span>
+          </div>
+        </SettingRow>
+
+        <SettingRow label="Top P" description="Nucleus sampling threshold">
+          <div className="flex items-center gap-2">
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={settings.defaultTopP}
+              onChange={(e) => {
+                const val = parseFloat(e.target.value);
+                settings.setTopP(val);
+                handleSave('defaultTopP', String(val));
+              }}
+              className="w-24"
+              style={{ accentColor: 'var(--accent-green)' }}
+            />
+            <span className="text-xs w-8 text-right" style={{ color: 'var(--text-secondary)', fontFamily: "'JetBrains Mono', monospace" }}>
+              {settings.defaultTopP.toFixed(2)}
+            </span>
+          </div>
+        </SettingRow>
+
+        <SettingRow label="Top K" description="Top-K sampling (0 = disabled)">
+          <NumberInput
+            value={settings.defaultTopK}
+            onChange={(val) => { settings.setTopK(val); handleSave('defaultTopK', String(val)); }}
+            min={0}
+            max={500}
+          />
+        </SettingRow>
+
+        <SettingRow label="Repeat Penalty" description="Penalty for repeating tokens (1.0 = no penalty)">
+          <div className="flex items-center gap-2">
+            <input
+              type="range"
+              min={1}
+              max={2}
+              step={0.05}
+              value={settings.defaultRepeatPenalty}
+              onChange={(e) => {
+                const val = parseFloat(e.target.value);
+                settings.setRepeatPenalty(val);
+                handleSave('defaultRepeatPenalty', String(val));
+              }}
+              className="w-24"
+              style={{ accentColor: 'var(--accent-green)' }}
+            />
+            <span className="text-xs w-8 text-right" style={{ color: 'var(--text-secondary)', fontFamily: "'JetBrains Mono', monospace" }}>
+              {settings.defaultRepeatPenalty.toFixed(2)}
+            </span>
+          </div>
+        </SettingRow>
+
         {/* ── Privacy / Tor ── */}
         <SectionHeader title="Privacy &amp; Tor" />
 

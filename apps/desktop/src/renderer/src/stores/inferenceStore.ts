@@ -71,14 +71,23 @@ export const useInferenceStore = create<InferenceState>((set, get) => ({
   runInference: async (prompt) => {
     set({ isRunning: true, currentTokens: '' });
 
+    let cleaned = false;
+    const cleanup = (): void => {
+      if (!cleaned) {
+        cleaned = true;
+        set({ isRunning: false });
+        unsub();
+      }
+    };
+
     const unsub = window.api.on('inference:stream-token', (data: unknown) => {
       const { token, done, tokensPerSecond: tps, tokensGenerated } = data as {
         token: string; done: boolean; tokensPerSecond: number; tokensGenerated: number;
       };
 
       if (done) {
-        set({ isRunning: false, tokensPerSecond: tps, totalTokensGenerated: tokensGenerated });
-        unsub();
+        set({ tokensPerSecond: tps, totalTokensGenerated: tokensGenerated });
+        cleanup();
       } else {
         set((s) => ({
           currentTokens: s.currentTokens + token,
@@ -88,20 +97,28 @@ export const useInferenceStore = create<InferenceState>((set, get) => ({
     });
 
     try {
-      await window.api.invoke('inference:run', {
+      const settings = useSettingsStore.getState();
+
+      const result = await window.api.invoke('inference:run', {
         prompt,
         params: {
-          temperature: 0.7,
-          topP: 0.9,
-          topK: 40,
-          repeatPenalty: 1.1,
-          maxTokens: 2048,
+          temperature: settings.defaultTemperature,
+          topP: settings.defaultTopP,
+          topK: settings.defaultTopK,
+          repeatPenalty: settings.defaultRepeatPenalty,
+          maxTokens: settings.defaultMaxTokens,
           stop: [],
         },
-      });
+      }) as { success: boolean; error?: string };
+
+      // If the IPC call returned success: false (stream error caught by wrapHandler),
+      // the done event may never have fired. Ensure cleanup.
+      if (!result.success) {
+        console.error('[Inference] Stream error:', result.error);
+        cleanup();
+      }
     } catch {
-      set({ isRunning: false });
-      unsub();
+      cleanup();
     }
   },
 
