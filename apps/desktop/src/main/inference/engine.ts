@@ -27,19 +27,27 @@ export class InferenceEngine {
     await this.unload();
 
     try {
+      console.log('[InferenceEngine] Loading model:', modelPath);
+      console.log('[InferenceEngine] Config:', JSON.stringify(config));
+
       const { getLlama, LlamaChatSession } = await import('node-llama-cpp');
+      console.log('[InferenceEngine] node-llama-cpp imported, initializing llama...');
+
       const llama = await getLlama();
+      console.log('[InferenceEngine] Llama initialized, loading model file...');
 
       const model = await llama.loadModel({
         modelPath,
         gpuLayers: config.gpuLayers,
       });
+      console.log('[InferenceEngine] Model loaded, creating context...');
 
       const context = await model.createContext({
         contextSize: config.contextSize,
         batchSize: config.batchSize,
         threads: config.threads,
       });
+      console.log('[InferenceEngine] Context created, starting chat session...');
 
       const session = new LlamaChatSession({ contextSequence: context.getSequence() });
 
@@ -48,8 +56,10 @@ export class InferenceEngine {
       this.isLoaded = true;
       this.currentModelPath = modelPath;
       this.totalTokensGenerated = 0;
+      console.log('[InferenceEngine] Model ready:', modelPath);
     } catch (error) {
       this.isLoaded = false;
+      console.error('[InferenceEngine] Failed to load model:', error);
       throw new Error(`Failed to load model: ${error instanceof Error ? error.message : String(error)}`);
     }
   }

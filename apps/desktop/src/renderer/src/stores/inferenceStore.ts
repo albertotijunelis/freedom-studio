@@ -9,6 +9,7 @@ interface InferenceState {
   loadedModelPath: string | null;
   isLoading: boolean;
   isRunning: boolean;
+  loadError: string | null;
   currentTokens: string;
   tokensPerSecond: number;
   totalTokensGenerated: number;
@@ -31,6 +32,7 @@ export const useInferenceStore = create<InferenceState>((set, get) => ({
   loadedModelPath: null,
   isLoading: false,
   isRunning: false,
+  loadError: null,
   currentTokens: '',
   tokensPerSecond: 0,
   totalTokensGenerated: 0,
@@ -44,7 +46,7 @@ export const useInferenceStore = create<InferenceState>((set, get) => ({
 
   loadModel: async (modelPath, modelName) => {
     const settings = useSettingsStore.getState();
-    set({ isLoading: true });
+    set({ isLoading: true, loadError: null });
     try {
       const result = await window.api.invoke('inference:load-model', {
         modelPath,
@@ -56,11 +58,12 @@ export const useInferenceStore = create<InferenceState>((set, get) => ({
         },
       }) as { success: boolean; error?: string };
 
-      if (!result.success) throw new Error(result.error);
+      if (!result.success) throw new Error(result.error || 'Failed to load model');
 
-      set({ loadedModel: modelName, loadedModelPath: modelPath, isLoading: false });
+      set({ loadedModel: modelName, loadedModelPath: modelPath, isLoading: false, loadError: null });
     } catch (error) {
-      set({ isLoading: false });
+      const message = error instanceof Error ? error.message : 'Failed to load model';
+      set({ isLoading: false, loadError: message });
       throw error;
     }
   },

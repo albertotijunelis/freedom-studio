@@ -307,6 +307,9 @@ export class ModelManager {
   private detectQuantization(fileName: string): string {
     const upper = fileName.toUpperCase();
     const quantPatterns = [
+      'IQ1_S', 'IQ1_M', 'IQ2_XXS', 'IQ2_XS', 'IQ2_S', 'IQ2_M',
+      'IQ3_XXS', 'IQ3_XS', 'IQ3_S', 'IQ3_M',
+      'IQ4_NL', 'IQ4_XS',
       'Q2_K', 'Q3_K_S', 'Q3_K_M', 'Q3_K_L',
       'Q4_0', 'Q4_K_S', 'Q4_K_M',
       'Q5_0', 'Q5_K_S', 'Q5_K_M',

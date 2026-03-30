@@ -11,6 +11,7 @@ interface AppState {
   isCheckingSetup: boolean;
   currentPage: PageId;
   sidebarExpanded: boolean;
+  unlockError: string | null;
 
   setLocked: (locked: boolean) => void;
   setSetupComplete: (complete: boolean) => void;
@@ -18,6 +19,7 @@ interface AppState {
   toggleSidebar: () => void;
   setSidebarExpanded: (expanded: boolean) => void;
   checkSetupStatus: () => Promise<void>;
+  unlockApp: (password: string) => Promise<boolean>;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -26,6 +28,7 @@ export const useAppStore = create<AppState>((set) => ({
   isCheckingSetup: true,
   currentPage: 'chat',
   sidebarExpanded: false,
+  unlockError: null,
 
   setLocked: (locked) => set({ isLocked: locked }),
   setSetupComplete: (complete) => set({ isSetupComplete: complete }),
@@ -39,12 +42,35 @@ export const useAppStore = create<AppState>((set) => ({
         success: boolean; data?: string | null;
       };
       if (result.success && result.data === 'true') {
-        set({ isSetupComplete: true, isCheckingSetup: false });
+        // Setup was completed — check if master password is configured
+        const cryptoResult = await window.api.invoke('crypto:status') as {
+          success: boolean; data?: { isSet: boolean; isUnlocked: boolean };
+        };
+        const needsUnlock = cryptoResult.success && cryptoResult.data?.isSet && !cryptoResult.data?.isUnlocked;
+        set({ isSetupComplete: true, isLocked: !!needsUnlock, isCheckingSetup: false });
       } else {
         set({ isSetupComplete: false, isCheckingSetup: false });
       }
     } catch {
       set({ isSetupComplete: false, isCheckingSetup: false });
+    }
+  },
+
+  unlockApp: async (password: string) => {
+    set({ unlockError: null });
+    try {
+      const result = await window.api.invoke('crypto:unlock', { password }) as {
+        success: boolean; data?: boolean; error?: string;
+      };
+      if (result.success && result.data === true) {
+        set({ isLocked: false });
+        return true;
+      }
+      set({ unlockError: 'Incorrect master password' });
+      return false;
+    } catch {
+      set({ unlockError: 'Failed to unlock — please try again' });
+      return false;
     }
   },
 }));
