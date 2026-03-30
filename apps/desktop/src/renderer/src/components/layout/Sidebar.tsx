@@ -1,7 +1,7 @@
 // Freedom Studio — Copyright (C) 2026 Alberto Tijunelis Neto <albertotijunelis@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { ChatIcon, ModelIcon, ServerIcon, SettingsIcon, TorIcon, ChevronRightIcon, ChevronLeftIcon } from '../icons/Icons';
+import { ChatIcon, ModelIcon, ServerIcon, SettingsIcon, TorIcon, ChevronLeftIcon, DownloadIcon } from '../icons/Icons';
 import { useAppStore } from '../../stores/appStore';
 import type { PageId } from '../../stores/appStore';
 import { useTorStore } from '../../stores/torStore';
@@ -15,6 +15,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { id: 'chat', label: 'Chat', icon: <ChatIcon size={18} /> },
   { id: 'models', label: 'Models', icon: <ModelIcon size={18} /> },
+  { id: 'browse', label: 'Browse HF', icon: <DownloadIcon size={18} /> },
   { id: 'server', label: 'API Server', icon: <ServerIcon size={18} /> },
   { id: 'settings', label: 'Settings', icon: <SettingsIcon size={18} /> },
 ];

@@ -58,4 +58,8 @@ export function registerInferenceHandlers(): void {
   ipcMain.handle('inference:unload', () => {
     return wrapHandler(() => inferenceEngine.unload());
   });
+
+  ipcMain.handle('inference:detect-gpu', () => {
+    return wrapHandler(() => inferenceEngine.detectGPU());
+  });
 }

@@ -200,6 +200,56 @@ export class InferenceEngine {
   getCurrentModelPath(): string {
     return this.currentModelPath;
   }
+
+  async detectGPU(): Promise<{ backend: string; vramMb: number; deviceName: string; suggestedGpuLayers: number }> {
+    try {
+      const { getLlama } = await import('node-llama-cpp');
+      const llama = await getLlama();
+      const gpuInfo = await llama.getGpuDeviceNames();
+
+      let backend = 'cpu';
+      let deviceName = 'CPU Only';
+      let vramMb = 0;
+      let suggestedGpuLayers = 0;
+
+      if (gpuInfo && gpuInfo.length > 0) {
+        deviceName = gpuInfo[0] || 'Unknown GPU';
+
+        // Detect backend from platform
+        if (process.platform === 'darwin') {
+          backend = 'metal';
+          suggestedGpuLayers = 99; // Metal handles all layers well
+        } else {
+          // Check for CUDA-capable GPU names
+          const name = deviceName.toLowerCase();
+          if (name.includes('nvidia') || name.includes('geforce') || name.includes('rtx') || name.includes('gtx') || name.includes('quadro') || name.includes('tesla')) {
+            backend = 'cuda';
+            suggestedGpuLayers = 35;
+          } else {
+            backend = 'vulkan';
+            suggestedGpuLayers = 20;
+          }
+        }
+
+        // Try to get VRAM info from the llama instance
+        const vramInfo = await llama.getVramState();
+        if (vramInfo) {
+          vramMb = Math.round((vramInfo.total || 0) / (1024 * 1024));
+          // Scale suggested layers based on VRAM
+          if (vramMb >= 24000) suggestedGpuLayers = 99;
+          else if (vramMb >= 12000) suggestedGpuLayers = 50;
+          else if (vramMb >= 8000) suggestedGpuLayers = 35;
+          else if (vramMb >= 4000) suggestedGpuLayers = 20;
+          else if (vramMb >= 2000) suggestedGpuLayers = 10;
+        }
+      }
+
+      return { backend, vramMb, deviceName, suggestedGpuLayers };
+    } catch (error) {
+      console.error('[InferenceEngine] GPU detection failed:', error);
+      return { backend: 'cpu', vramMb: 0, deviceName: 'CPU Only (detection failed)', suggestedGpuLayers: 0 };
+    }
+  }
 }
 
 export const inferenceEngine = new InferenceEngine();

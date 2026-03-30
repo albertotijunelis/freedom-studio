@@ -3,7 +3,7 @@
 
 import { create } from 'zustand';
 
-export type PageId = 'chat' | 'models' | 'server' | 'settings' | 'setup';
+export type PageId = 'chat' | 'models' | 'browse' | 'server' | 'settings' | 'setup';
 
 interface AppState {
   isLocked: boolean;
