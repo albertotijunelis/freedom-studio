@@ -36,19 +36,19 @@
 
 ## Why Freedom Studio?
 
-**LM Studio** is solid software and a great way to run AI locally. But it's **closed-source** — you can't audit what happens under the hood. If you're running models locally specifically for privacy, trusting a black box kind of defeats the purpose.
+**LM Studio** is solid software and a great way to run AI locally. It's partially open-source — the core engine is open, but the app itself is proprietary. If you're running models locally specifically for privacy, having parts you can't fully audit still leaves gaps.
 
 **Freedom Studio** takes a different approach:
 
 | | LM Studio | Freedom Studio |
 |---|---|---|
-| Source code | Closed | **100% open (GPL-3.0)** |
+| Source code | Partially open-source | **100% open (GPL-3.0)** |
 | Telemetry | Has telemetry (opt-out in settings) | **Zero. None. Ever.** |
 | Local encryption | No local encryption | **E2E: TLS + AES-256 + Argon2id** |
 | Tor support | No | **Built-in Tor routing** |
 | API encryption | HTTP on localhost | **HTTPS + mTLS on localhost** |
 | Database | Unencrypted | **SQLCipher (AES-256)** |
-| License | Proprietary | **GPL-3.0 — forever free** |
+| License | Proprietary (app) | **GPL-3.0 — forever free** |
 | Price | Free (personal use) | **Free forever (GPL-3.0)** |
 
 > *Your AI. Your hardware. Your data. No exceptions.*
