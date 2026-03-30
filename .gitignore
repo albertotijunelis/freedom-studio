@@ -33,6 +33,9 @@ pnpm-debug.log*
 # Coverage
 coverage/
 
+# Website (hosted separately on freedomstudio.app)
+website/
+
 # Temp
 *.tmp
 *.temp
