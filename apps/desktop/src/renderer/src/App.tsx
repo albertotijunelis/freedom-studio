@@ -7,17 +7,26 @@ import { TopBar } from './components/layout/TopBar';
 import { ContentArea } from './components/layout/ContentArea';
 import { useAppStore } from './stores/appStore';
 import { useSettingsStore } from './stores/settingsStore';
+import { useInferenceStore } from './stores/inferenceStore';
 import { SetupWizard } from './pages/SetupWizard';
 import { LockScreen } from './pages/LockScreen';
 
 export function App(): React.JSX.Element {
   const { sidebarExpanded, isSetupComplete, isCheckingSetup, isLocked, checkSetupStatus } = useAppStore();
   const { scanlineEnabled, theme, loadSettings } = useSettingsStore();
+  const { restoreLastModel } = useInferenceStore();
 
   useEffect(() => {
     checkSetupStatus();
     loadSettings();
   }, [checkSetupStatus, loadSettings]);
+
+  // Restore last loaded model after setup is confirmed and app is unlocked
+  useEffect(() => {
+    if (isSetupComplete && !isLocked) {
+      restoreLastModel();
+    }
+  }, [isSetupComplete, isLocked, restoreLastModel]);
 
   // Apply theme class to document root
   useEffect(() => {

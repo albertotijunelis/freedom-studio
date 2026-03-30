@@ -47,7 +47,7 @@ export function TopBar({ sidebarExpanded }: TopBarProps): React.JSX.Element {
             fontFamily: "'JetBrains Mono', monospace",
           }}
         >
-          v0.1.0-dev
+          v0.2.0-dev
         </span>
       </div>
 

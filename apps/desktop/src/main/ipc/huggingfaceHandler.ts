@@ -94,7 +94,7 @@ export function registerHuggingFaceHandlers(): void {
             filename,
             size: (s.size as number) || 0,
             quantization: detectQuantization(filename),
-            sha256: (s.lfs?.oid as string) || '',
+            sha256: ((s.lfs as Record<string, unknown> | undefined)?.oid as string) || '',
             downloadUrl: `https://huggingface.co/${args.modelId}/resolve/main/${filename}`,
           };
         })
@@ -118,6 +118,20 @@ export function registerHuggingFaceHandlers(): void {
           }
         }
       );
+
+      // Send final 'completed' progress so the store can clean up its listener
+      if (window && !window.isDestroyed()) {
+        window.webContents.send('models:download-progress', {
+          modelId: args.filename,
+          fileName: args.filename,
+          percent: 100,
+          downloadedBytes: 0,
+          totalBytes: 0,
+          speed: '0 B/s',
+          eta: '0s',
+          status: 'completed',
+        });
+      }
 
       return { filePath, fileName: args.filename };
     });

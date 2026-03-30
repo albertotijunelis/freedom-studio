@@ -1,6 +1,6 @@
 {
   "name": "@freedom-studio/desktop",
-  "version": "0.1.0-dev",
+  "version": "0.2.0-dev",
   "description": "Freedom Studio — Local-first AI model runner",
   "author": "Alberto Tijunelis Neto <albertotijunelis@gmail.com>",
   "license": "GPL-3.0-or-later",

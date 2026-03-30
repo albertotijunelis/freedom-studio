@@ -25,6 +25,7 @@ interface InferenceState {
   runInference: (prompt: string) => Promise<void>;
   stopInference: () => Promise<void>;
   unloadModel: () => Promise<void>;
+  restoreLastModel: () => Promise<void>;
 }
 
 export const useInferenceStore = create<InferenceState>((set, get) => ({
@@ -61,6 +62,10 @@ export const useInferenceStore = create<InferenceState>((set, get) => ({
       if (!result.success) throw new Error(result.error || 'Failed to load model');
 
       set({ loadedModel: modelName, loadedModelPath: modelPath, isLoading: false, loadError: null });
+
+      // Persist last loaded model to settings DB
+      window.api.invoke('settings:set', { key: 'lastModelPath', value: modelPath });
+      window.api.invoke('settings:set', { key: 'lastModelName', value: modelName });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to load model';
       set({ isLoading: false, loadError: message });
@@ -130,5 +135,28 @@ export const useInferenceStore = create<InferenceState>((set, get) => ({
   unloadModel: async () => {
     await window.api.invoke('inference:unload');
     set({ loadedModel: null, loadedModelPath: null });
+    // Clear persisted model
+    window.api.invoke('settings:set', { key: 'lastModelPath', value: '' });
+    window.api.invoke('settings:set', { key: 'lastModelName', value: '' });
+  },
+
+  restoreLastModel: async () => {
+    try {
+      const pathResult = await window.api.invoke('settings:get', { key: 'lastModelPath' }) as {
+        success: boolean; data?: string | null;
+      };
+      const nameResult = await window.api.invoke('settings:get', { key: 'lastModelName' }) as {
+        success: boolean; data?: string | null;
+      };
+
+      const modelPath = pathResult.success ? pathResult.data : null;
+      const modelName = nameResult.success ? nameResult.data : null;
+
+      if (modelPath && modelName) {
+        await get().loadModel(modelPath, modelName);
+      }
+    } catch {
+      // Model may have been deleted or settings cleared — silently ignore
+    }
   },
 }));
