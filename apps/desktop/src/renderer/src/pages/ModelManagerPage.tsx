@@ -19,14 +19,17 @@ function formatBytes(bytes: number): string {
 function ModelCard({
   model,
   isLoaded,
+  isModelLoading,
   onLoad,
   onDelete,
 }: {
   model: ModelInfo;
   isLoaded: boolean;
+  isModelLoading: boolean;
   onLoad: () => void;
   onDelete: () => void;
 }): React.JSX.Element {
+  const disabled = isLoaded || isModelLoading;
   return (
     <div
       className="glass-panel p-4 flex flex-col gap-3"
@@ -84,12 +87,12 @@ function ModelCard({
       <div className="flex items-center gap-2 mt-auto">
         <button
           onClick={onLoad}
-          disabled={isLoaded}
+          disabled={disabled}
           className="flex-1 px-3 py-1.5 rounded text-xs font-bold uppercase cursor-pointer transition-all"
           style={{
-            background: isLoaded ? 'var(--bg-surface)' : 'rgba(0, 255, 136, 0.12)',
-            color: isLoaded ? 'var(--text-muted)' : 'var(--accent-green)',
-            border: `1px solid ${isLoaded ? 'var(--border-subtle)' : 'var(--border-accent)'}`,
+            background: disabled ? 'var(--bg-surface)' : 'rgba(0, 255, 136, 0.12)',
+            color: disabled ? 'var(--text-muted)' : 'var(--accent-green)',
+            border: `1px solid ${disabled ? 'var(--border-subtle)' : 'var(--border-accent)'}`,
             fontFamily: "'JetBrains Mono', monospace",
           }}
         >
@@ -97,11 +100,13 @@ function ModelCard({
         </button>
         <button
           onClick={onDelete}
+          disabled={isModelLoading}
           className="px-3 py-1.5 rounded text-xs cursor-pointer transition-all hover:bg-red-500/10"
           style={{
             color: 'var(--accent-red)',
             border: '1px solid rgba(255, 51, 85, 0.3)',
             fontFamily: "'JetBrains Mono', monospace",
+            opacity: isModelLoading ? 0.5 : 1,
           }}
         >
           Delete
@@ -150,7 +155,7 @@ function DownloadItem({ download }: { download: DownloadProgress }): React.JSX.E
 /* ── Main Model Manager Page ── */
 export function ModelManagerPage(): React.JSX.Element {
   const { localModels, downloadQueue, diskUsage, isLoading, error, importProgress, fetchLocalModels, fetchDiskUsage, deleteModel, importModel } = useModelsStore();
-  const { loadedModelPath, loadModel, isLoading: modelLoading } = useInferenceStore();
+  const { loadedModelPath, loadModel, isLoading: modelLoading, loadError } = useInferenceStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
@@ -181,8 +186,9 @@ export function ModelManagerPage(): React.JSX.Element {
   const handleLoad = useCallback(async (model: ModelInfo) => {
     try {
       await loadModel(model.filePath, model.name);
-    } catch {
-      // Error handled in store
+      setToast({ message: `Loaded "${model.name}" successfully`, type: 'success' });
+    } catch (err) {
+      setToast({ message: err instanceof Error ? err.message : 'Failed to load model', type: 'error' });
     }
   }, [loadModel]);
 
@@ -315,9 +321,26 @@ export function ModelManagerPage(): React.JSX.Element {
         </div>
       )}
 
+      {/* Model Loading Indicator */}
+      {modelLoading && (
+        <div className="mx-6 mb-2 glass-panel p-3 flex items-center gap-3" style={{ border: '1px solid var(--border-accent)' }}>
+          <div className="w-3 h-3 rounded-full animate-pulse" style={{ background: 'var(--accent-green)', boxShadow: '0 0 8px var(--accent-green)' }} />
+          <span className="text-xs" style={{ color: 'var(--accent-green)', fontFamily: "'JetBrains Mono', monospace" }}>
+            Loading model... This may take a while for large models.
+          </span>
+        </div>
+      )}
+
+      {/* Model Load Error */}
+      {loadError && !modelLoading && (
+        <div className="mx-6 mb-2 px-3 py-2 rounded text-xs" style={{ background: 'rgba(255, 51, 85, 0.1)', color: 'var(--accent-red)', border: '1px solid rgba(255, 51, 85, 0.3)', fontFamily: "'JetBrains Mono', monospace" }}>
+          Load failed: {loadError}
+        </div>
+      )}
+
       {/* Model Grid */}
       <div className="flex-1 overflow-y-auto custom-scrollbar px-6 pb-6">
-        {isLoading || modelLoading ? (
+        {isLoading ? (
           <div className="flex items-center justify-center h-32">
             <span className="text-xs" style={{ color: 'var(--text-muted)', fontFamily: "'JetBrains Mono', monospace" }}>
               Loading...
@@ -339,6 +362,7 @@ export function ModelManagerPage(): React.JSX.Element {
                 key={model.id}
                 model={model}
                 isLoaded={model.filePath === loadedModelPath}
+                isModelLoading={modelLoading}
                 onLoad={() => handleLoad(model)}
                 onDelete={() => handleDelete(model.id)}
               />

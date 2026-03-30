@@ -8,9 +8,10 @@ import { ContentArea } from './components/layout/ContentArea';
 import { useAppStore } from './stores/appStore';
 import { useSettingsStore } from './stores/settingsStore';
 import { SetupWizard } from './pages/SetupWizard';
+import { LockScreen } from './pages/LockScreen';
 
 export function App(): React.JSX.Element {
-  const { sidebarExpanded, isSetupComplete, isCheckingSetup, checkSetupStatus } = useAppStore();
+  const { sidebarExpanded, isSetupComplete, isCheckingSetup, isLocked, checkSetupStatus } = useAppStore();
   const { scanlineEnabled, theme, loadSettings } = useSettingsStore();
 
   useEffect(() => {
@@ -38,6 +39,10 @@ export function App(): React.JSX.Element {
 
   if (!isSetupComplete) {
     return <SetupWizard />;
+  }
+
+  if (isLocked) {
+    return <LockScreen />;
   }
 
   return (
