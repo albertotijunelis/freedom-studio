@@ -448,7 +448,7 @@ export function SettingsPage(): React.JSX.Element {
 
         <div className="py-3">
           <p className="text-xs" style={{ color: 'var(--text-secondary)', fontFamily: "'JetBrains Mono', monospace" }}>
-            Freedom Studio v0.1.0-dev
+            Freedom Studio v0.2.0-dev
           </p>
           <p className="text-xs mt-1" style={{ color: 'var(--text-muted)', fontFamily: "'JetBrains Mono', monospace" }}>
             Copyright (C) 2026 Alberto Tijunelis Neto
