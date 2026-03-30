@@ -1,0 +1,43 @@
+# Freedom Studio
+
+node_modules/
+dist/
+out/
+
+# Electron
+release/
+
+# Context / prompt files (never commit)
+CLAUDE.md
+NEW_CHAT_CONTEXT.md
+BUILD_EVERYTHING.md
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Turbo
+.turbo/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Coverage
+coverage/
+
+# Temp
+*.tmp
+*.temp

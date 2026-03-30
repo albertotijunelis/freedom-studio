@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <pattern id="hatch" patternUnits="userSpaceOnUse" width="5" height="5" patternTransform="rotate(45)">
+      <line x1="0" y1="0" x2="0" y2="5" stroke="#00ff88" stroke-width="2"/>
+    </pattern>
+    <filter id="glow" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur stdDeviation="2.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="64" fill="#000000"/>
+  <g filter="url(#glow)">
+    <rect x="72" y="108" width="168" height="32" fill="#00ff88"/>
+    <rect x="72" y="156" width="120" height="28" fill="#00ff88"/>
+    <rect x="72" y="204" width="100" height="25" fill="#00ff88"/>
+    <rect x="72" y="229" width="8" height="28" fill="#00ff88"/>
+    <rect x="72" y="229" width="22" height="8" fill="#00ff88"/>
+    <rect x="72" y="264" width="85" height="22" fill="url(#hatch)"/>
+    <rect x="72" y="264" width="85" height="22" fill="none" stroke="#00ff88" stroke-width="1" stroke-opacity="0.5"/>
+    <rect x="92" y="302" width="108" height="22" fill="url(#hatch)"/>
+    <rect x="92" y="302" width="108" height="22" fill="none" stroke="#00ff88" stroke-width="1" stroke-opacity="0.5"/>
+    <rect x="174" y="208" width="7" height="7" fill="#00ff88"/>
+    <line x1="181" y1="211" x2="210" y2="211" stroke="#00ff88" stroke-width="1.5"/>
+    <rect x="300" y="108" width="134" height="32" fill="#00ff88"/>
+    <rect x="262" y="156" width="78" height="28" fill="#00ff88"/>
+    <rect x="358" y="158" width="62" height="24" fill="#00ff88"/>
+    <rect x="218" y="210" width="7" height="7" fill="#00ff88"/>
+    <line x1="225" y1="213" x2="280" y2="213" stroke="#00ff88" stroke-width="1.5"/>
+    <rect x="287" y="202" width="108" height="26" fill="#00ff88"/>
+    <line x1="345" y1="228" x2="345" y2="248" stroke="#00ff88" stroke-width="1.5"/>
+    <rect x="341" y="242" width="7" height="7" fill="#00ff88"/>
+    <rect x="220" y="250" width="70" height="22" fill="url(#hatch)"/>
+    <rect x="220" y="250" width="70" height="22" fill="none" stroke="#00ff88" stroke-width="1" stroke-opacity="0.5"/>
+    <rect x="310" y="248" width="96" height="26" fill="#00ff88"/>
+    <rect x="178" y="288" width="115" height="22" fill="url(#hatch)"/>
+    <rect x="178" y="288" width="115" height="22" fill="none" stroke="#00ff88" stroke-width="1" stroke-opacity="0.5"/>
+    <rect x="250" y="324" width="124" height="26" fill="#00ff88"/>
+    <rect x="275" y="210" width="7" height="7" fill="#00ff88"/>
+    <line x1="343" y1="226" x2="343" y2="245" stroke="#00ff88" stroke-width="1.5"/>
+  </g>
+</svg>
