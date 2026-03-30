@@ -58,8 +58,7 @@
 ## Features
 
 ### >> Local AI Inference
-- Powered by **llama.cpp** via 
-ode-llama-cpp — runs 100% on your machine
+- Powered by **llama.cpp** via **node-llama-cpp** — runs 100% on your machine
 - GPU acceleration: **CUDA** (NVIDIA), **Metal** (Apple Silicon), **Vulkan** (cross-platform)
 - Full parameter control: temperature, top-p, top-k, repeat penalty, context size, batch size
 - Streaming token output in real-time
