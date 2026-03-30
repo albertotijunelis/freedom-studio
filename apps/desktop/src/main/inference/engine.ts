@@ -144,6 +144,11 @@ export class InferenceEngine {
         });
         return;
       }
+      // Always fire done on error so the renderer can clean up
+      onToken('', true, {
+        tokensGenerated,
+        tokensPerSecond: tokensGenerated / ((Date.now() - startTime) / 1000 || 1),
+      });
       throw error;
     } finally {
       this.isRunning = false;

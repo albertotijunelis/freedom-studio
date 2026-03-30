@@ -9,6 +9,11 @@ interface SettingsState {
   defaultThreadCount: number;
   defaultBatchSize: number;
   defaultContextSize: number;
+  defaultMaxTokens: number;
+  defaultTemperature: number;
+  defaultTopP: number;
+  defaultTopK: number;
+  defaultRepeatPenalty: number;
   autoLockMinutes: number;
   scanlineEnabled: boolean;
   scanlineIntensity: number;
@@ -22,6 +27,11 @@ interface SettingsState {
   setThreadCount: (count: number) => void;
   setBatchSize: (size: number) => void;
   setContextSize: (size: number) => void;
+  setMaxTokens: (tokens: number) => void;
+  setTemperature: (temp: number) => void;
+  setTopP: (topP: number) => void;
+  setTopK: (topK: number) => void;
+  setRepeatPenalty: (penalty: number) => void;
   setScanlineEnabled: (enabled: boolean) => void;
   setTheme: (theme: 'dark' | 'darker' | 'black') => void;
 }
@@ -31,7 +41,12 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   defaultGpuLayers: 0,
   defaultThreadCount: 4,
   defaultBatchSize: 512,
-  defaultContextSize: 4096,
+  defaultContextSize: 8192,
+  defaultMaxTokens: 4096,
+  defaultTemperature: 0.7,
+  defaultTopP: 0.9,
+  defaultTopK: 40,
+  defaultRepeatPenalty: 1.1,
   autoLockMinutes: 30,
   scanlineEnabled: true,
   scanlineIntensity: 3,
@@ -42,7 +57,9 @@ export const useSettingsStore = create<SettingsState>((set) => ({
     try {
       const keys = [
         'modelsDirectory', 'defaultGpuLayers', 'defaultThreadCount',
-        'defaultBatchSize', 'defaultContextSize', 'scanlineEnabled', 'theme',
+        'defaultBatchSize', 'defaultContextSize', 'defaultMaxTokens',
+        'defaultTemperature', 'defaultTopP', 'defaultTopK',
+        'defaultRepeatPenalty', 'scanlineEnabled', 'theme',
       ];
 
       for (const key of keys) {
@@ -62,6 +79,16 @@ export const useSettingsStore = create<SettingsState>((set) => ({
               set({ defaultBatchSize: parseInt(value, 10) }); break;
             case 'defaultContextSize':
               set({ defaultContextSize: parseInt(value, 10) }); break;
+            case 'defaultMaxTokens':
+              set({ defaultMaxTokens: parseInt(value, 10) }); break;
+            case 'defaultTemperature':
+              set({ defaultTemperature: parseFloat(value) }); break;
+            case 'defaultTopP':
+              set({ defaultTopP: parseFloat(value) }); break;
+            case 'defaultTopK':
+              set({ defaultTopK: parseInt(value, 10) }); break;
+            case 'defaultRepeatPenalty':
+              set({ defaultRepeatPenalty: parseFloat(value) }); break;
             case 'scanlineEnabled':
               set({ scanlineEnabled: value === 'true' }); break;
             case 'theme':
@@ -83,6 +110,11 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   setThreadCount: (count) => set({ defaultThreadCount: count }),
   setBatchSize: (size) => set({ defaultBatchSize: size }),
   setContextSize: (size) => set({ defaultContextSize: size }),
+  setMaxTokens: (tokens) => set({ defaultMaxTokens: tokens }),
+  setTemperature: (temp) => set({ defaultTemperature: temp }),
+  setTopP: (topP) => set({ defaultTopP: topP }),
+  setTopK: (topK) => set({ defaultTopK: topK }),
+  setRepeatPenalty: (penalty) => set({ defaultRepeatPenalty: penalty }),
   setScanlineEnabled: (enabled) => set({ scanlineEnabled: enabled }),
   setTheme: (theme) => set({ theme }),
 }));
