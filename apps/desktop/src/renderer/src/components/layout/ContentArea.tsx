@@ -4,6 +4,7 @@
 import { useAppStore } from '../../stores/appStore';
 import { ChatPage } from '../../pages/ChatPage';
 import { ModelManagerPage } from '../../pages/ModelManagerPage';
+import { HuggingFaceBrowser } from '../../pages/HuggingFaceBrowser';
 import { APIServerPage } from '../../pages/APIServerPage';
 import { SettingsPage } from '../../pages/SettingsPage';
 
@@ -17,6 +18,7 @@ export function ContentArea(): React.JSX.Element {
     >
       {currentPage === 'chat' && <ChatPage />}
       {currentPage === 'models' && <ModelManagerPage />}
+      {currentPage === 'browse' && <HuggingFaceBrowser />}
       {currentPage === 'server' && <APIServerPage />}
       {currentPage === 'settings' && <SettingsPage />}
     </main>

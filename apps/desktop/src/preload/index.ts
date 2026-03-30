@@ -11,6 +11,7 @@ const ALLOWED_INVOKE_CHANNELS = [
   'inference:stats',
   'inference:is-loaded',
   'inference:unload',
+  'inference:detect-gpu',
   'models:list',
   'models:download',
   'models:delete',
@@ -46,6 +47,9 @@ const ALLOWED_INVOKE_CHANNELS = [
   'chat:create-system-prompt',
   'settings:get',
   'settings:set',
+  'hf:search',
+  'hf:get-files',
+  'hf:download',
 ] as const;
 
 const ALLOWED_ON_CHANNELS = [

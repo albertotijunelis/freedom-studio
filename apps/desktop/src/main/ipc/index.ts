@@ -7,6 +7,7 @@ import { registerServerHandlers } from './serverHandler';
 import { registerTorHandlers } from './torHandler';
 import { registerCryptoHandlers } from './cryptoHandler';
 import { registerChatHandlers } from './chatHandler';
+import { registerHuggingFaceHandlers } from './huggingfaceHandler';
 
 export function registerAllHandlers(): void {
   registerInferenceHandlers();
@@ -15,4 +16,5 @@ export function registerAllHandlers(): void {
   registerTorHandlers();
   registerCryptoHandlers();
   registerChatHandlers();
+  registerHuggingFaceHandlers();
 }

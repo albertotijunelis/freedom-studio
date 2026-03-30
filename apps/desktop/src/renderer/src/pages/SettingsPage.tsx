@@ -1,7 +1,7 @@
 // Freedom Studio — Copyright (C) 2026 Alberto Tijunelis Neto <albertotijunelis@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useTorStore } from '../stores/torStore';
 
@@ -105,6 +105,8 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (val: boole
 export function SettingsPage(): React.JSX.Element {
   const settings = useSettingsStore();
   const tor = useTorStore();
+  const [gpuInfo, setGpuInfo] = useState<{ backend: string; vramMb: number; deviceName: string; suggestedGpuLayers: number } | null>(null);
+  const [gpuDetecting, setGpuDetecting] = useState(false);
 
   useEffect(() => {
     settings.loadSettings();
@@ -114,6 +116,26 @@ export function SettingsPage(): React.JSX.Element {
   const handleSave = useCallback(async (key: string, value: string) => {
     await settings.saveSetting(key, value);
   }, [settings]);
+
+  const handleDetectGPU = useCallback(async () => {
+    setGpuDetecting(true);
+    try {
+      const result = await window.api.invoke('inference:detect-gpu') as { success: boolean; data?: { backend: string; vramMb: number; deviceName: string; suggestedGpuLayers: number } };
+      if (result.success && result.data) {
+        setGpuInfo(result.data);
+      }
+    } catch {
+      // Ignore
+    } finally {
+      setGpuDetecting(false);
+    }
+  }, []);
+
+  const handleApplyGPUSuggestion = useCallback(() => {
+    if (!gpuInfo) return;
+    settings.setGpuLayers(gpuInfo.suggestedGpuLayers);
+    handleSave('defaultGpuLayers', String(gpuInfo.suggestedGpuLayers));
+  }, [gpuInfo, settings, handleSave]);
 
   const handlePickModelsDir = useCallback(async () => {
     try {
@@ -173,6 +195,69 @@ export function SettingsPage(): React.JSX.Element {
             max={128}
           />
         </SettingRow>
+
+        {/* GPU Auto-Detection */}
+        <div className="py-3 border-b" style={{ borderColor: 'var(--border-subtle)' }}>
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-sm" style={{ color: 'var(--text-primary)', fontFamily: "'JetBrains Mono', monospace" }}>
+                GPU Auto-Detect
+              </span>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                Detect your GPU and get recommended GPU layer count
+              </p>
+            </div>
+            <button
+              onClick={handleDetectGPU}
+              disabled={gpuDetecting}
+              className="px-3 py-1 rounded text-xs cursor-pointer transition-all hover:bg-white/5"
+              style={{
+                color: gpuDetecting ? 'var(--text-muted)' : 'var(--accent-cyan)',
+                border: `1px solid ${gpuDetecting ? 'var(--border-subtle)' : 'rgba(0, 212, 255, 0.3)'}`,
+                fontFamily: "'JetBrains Mono', monospace",
+              }}
+            >
+              {gpuDetecting ? 'Detecting...' : 'Detect GPU'}
+            </button>
+          </div>
+          {gpuInfo && (
+            <div className="mt-2 p-2 rounded text-xs space-y-1" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
+              <div style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Device: </span>
+                <span style={{ color: 'var(--accent-cyan)' }}>{gpuInfo.deviceName}</span>
+              </div>
+              <div style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Backend: </span>
+                <span style={{ color: 'var(--accent-green)' }}>{gpuInfo.backend.toUpperCase()}</span>
+              </div>
+              {gpuInfo.vramMb > 0 && (
+                <div style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>VRAM: </span>
+                  <span style={{ color: 'var(--text-primary)' }}>{(gpuInfo.vramMb / 1024).toFixed(1)} GB</span>
+                </div>
+              )}
+              <div className="flex items-center gap-2 mt-1">
+                <span style={{ color: 'var(--text-secondary)', fontFamily: "'JetBrains Mono', monospace" }}>
+                  Suggested GPU Layers: <span style={{ color: 'var(--accent-green)' }}>{gpuInfo.suggestedGpuLayers}</span>
+                </span>
+                {gpuInfo.suggestedGpuLayers !== settings.defaultGpuLayers && (
+                  <button
+                    onClick={handleApplyGPUSuggestion}
+                    className="px-2 py-0.5 rounded cursor-pointer transition-all hover:bg-white/5"
+                    style={{
+                      color: 'var(--accent-green)',
+                      border: '1px solid var(--border-accent)',
+                      fontFamily: "'JetBrains Mono', monospace",
+                      fontSize: 10,
+                    }}
+                  >
+                    Apply
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
 
         <SettingRow label="Thread Count" description="Number of CPU threads for inference">
           <NumberInput
