@@ -11,6 +11,7 @@ import type { Conversation, Message, SystemPrompt } from '@freedom-studio/types'
 /* ── Conversation List (left panel) ── */
 function ConversationList(): React.JSX.Element {
   const { conversations, activeConversationId, setActiveConversation, createConversation, deleteConversation, fetchConversations, fetchSystemPrompts, systemPrompts } = useChatStore();
+  const { isRunning, inferenceConversationId } = useInferenceStore();
   const [creating, setCreating] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [selectedPrompt, setSelectedPrompt] = useState('');
@@ -116,26 +117,38 @@ function ConversationList(): React.JSX.Element {
           conversations.map((conv: Conversation) => (
             <div
               key={conv.id}
-              onClick={() => setActiveConversation(conv.id)}
+              onClick={() => {
+                if (isRunning) return; // Block switching during inference
+                setActiveConversation(conv.id);
+              }}
               role="button"
               tabIndex={0}
-              onKeyDown={(e) => e.key === 'Enter' && setActiveConversation(conv.id)}
-              className="w-full text-left px-3 py-2.5 border-b transition-colors cursor-pointer group"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !isRunning) setActiveConversation(conv.id);
+              }}
+              className="w-full text-left px-3 py-2.5 border-b transition-colors group"
               style={{
                 borderColor: 'var(--border-subtle)',
                 background: activeConversationId === conv.id ? 'rgba(0, 255, 136, 0.06)' : 'transparent',
+                cursor: isRunning ? 'not-allowed' : 'pointer',
+                opacity: isRunning && conv.id !== inferenceConversationId ? 0.5 : 1,
               }}
             >
               <div className="flex items-center justify-between">
-                <span
-                  className="text-xs truncate"
-                  style={{
-                    color: activeConversationId === conv.id ? 'var(--accent-green)' : 'var(--text-primary)',
-                    fontFamily: "'JetBrains Mono', monospace",
-                  }}
-                >
-                  {conv.title}
-                </span>
+                <div className="flex items-center gap-1.5 min-w-0">
+                  {isRunning && inferenceConversationId === conv.id && (
+                    <span className="inline-block w-2 h-2 rounded-full animate-pulse flex-shrink-0" style={{ background: 'var(--accent-green)', boxShadow: '0 0 6px var(--accent-green)' }} />
+                  )}
+                  <span
+                    className="text-xs truncate"
+                    style={{
+                      color: activeConversationId === conv.id ? 'var(--accent-green)' : 'var(--text-primary)',
+                      fontFamily: "'JetBrains Mono', monospace",
+                    }}
+                  >
+                    {conv.title}
+                  </span>
+                </div>
                 <button
                   onClick={(e) => { e.stopPropagation(); deleteConversation(conv.id); }}
                   className="opacity-0 group-hover:opacity-100 text-xs px-1 cursor-pointer transition-opacity"
@@ -360,7 +373,13 @@ function ChatInput({ onSend, onStop, disabled, isRunning }: { onSend: (msg: stri
               handleSend();
             }
           }}
-          placeholder={disabled ? 'Load a model first...' : 'Type a message... (Shift+Enter for new line)'}
+          placeholder={
+            isRunning
+              ? '⏳ Model is generating a response — please wait or click Stop'
+              : disabled
+                ? 'Load a model first...'
+                : 'Type a message... (Shift+Enter for new line)'
+          }
           disabled={disabled || isRunning}
           rows={2}
           className="flex-1 px-3 py-2 rounded text-sm resize-none outline-none custom-scrollbar"
