@@ -3,6 +3,7 @@
 
 import { ipcMain, BrowserWindow } from 'electron';
 import { inferenceEngine } from '../inference/engine';
+import type { ChatMessage } from '../inference/engine';
 import type { ModelConfig, InferenceParams } from '@freedom-studio/types';
 
 interface IPCResult<T = unknown> {
@@ -26,17 +27,28 @@ export function registerInferenceHandlers(): void {
     return wrapHandler(() => inferenceEngine.loadModel(args.modelPath, args.config));
   });
 
-  ipcMain.handle('inference:run', (event, args: { prompt: string; params: InferenceParams }) => {
+  ipcMain.handle('inference:run', (event, args: { prompt: string; params: InferenceParams; messages?: Array<{ role: string; content: string }> }) => {
     return wrapHandler(async () => {
       const window = BrowserWindow.fromWebContents(event.sender);
 
-      // Stream tokens to renderer
-      const result = await inferenceEngine.stream(args.prompt, args.params, (token, done, stats) => {
+      const tokenCallback = (token: string, done: boolean, stats: { tokensGenerated: number; tokensPerSecond: number }): void => {
         if (window && !window.isDestroyed()) {
           window.webContents.send('inference:stream-token', { token, done, ...stats });
         }
-      });
+      };
 
+      // If full message history is provided, use context-aware streaming
+      if (args.messages && args.messages.length > 0) {
+        const chatMessages: ChatMessage[] = args.messages.map((m) => ({
+          role: m.role as 'system' | 'user' | 'assistant',
+          content: m.content,
+        }));
+        const result = await inferenceEngine.streamWithHistory(chatMessages, args.params, tokenCallback);
+        return result;
+      }
+
+      // Fallback: stream with just the prompt (API server compatibility)
+      const result = await inferenceEngine.stream(args.prompt, args.params, tokenCallback);
       return result;
     });
   });
