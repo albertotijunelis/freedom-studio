@@ -27,6 +27,7 @@ export class InferenceEngine {
   private abortController: AbortController | null = null;
   private totalTokensGenerated = 0;
   private currentModelPath = '';
+  private activeConversationId: string | null = null;
 
   async loadModel(modelPath: string, config: ModelConfig): Promise<void> {
     await this.unload();
@@ -163,10 +164,11 @@ export class InferenceEngine {
 
   /**
    * Stream inference with full conversation history context.
-   * Maps the conversation messages to LlamaChatSession history format
-   * so the model sees the entire conversation, not just the last prompt.
+   * Only resets the session history when switching to a different conversation.
+   * When continuing the same conversation, the session already has the KV cache
+   * from prior turns, so we skip setChatHistory to avoid costly re-evaluation.
    */
-  async streamWithHistory(messages: ChatMessage[], params: InferenceParams, onToken: TokenCallback): Promise<void> {
+  async streamWithHistory(messages: ChatMessage[], params: InferenceParams, onToken: TokenCallback, conversationId?: string): Promise<void> {
     if (!this.isLoaded || !this.session) {
       throw new Error('No model loaded');
     }
@@ -185,32 +187,42 @@ export class InferenceEngine {
       throw new Error('Last message must be from user');
     }
 
-    const historyMessages = messages.slice(0, -1);
+    // Only reset the session history when switching to a different conversation.
+    // When continuing the same conversation, the LlamaChatSession already holds
+    // the full KV cache from previous turns — calling setChatHistory would
+    // invalidate it and force a full re-evaluation of all tokens (causing the
+    // massive slowdown from 30 tok/s to <1 tok/s).
+    const needsHistoryReset = conversationId !== this.activeConversationId;
 
-    // Build chat history in node-llama-cpp format
-    const chatHistory: Array<{ type: string; text?: string; response?: string[] }> = [];
+    if (needsHistoryReset) {
+      const historyMessages = messages.slice(0, -1);
 
-    for (const msg of historyMessages) {
-      if (msg.role === 'system') {
-        chatHistory.push({ type: 'system', text: msg.content });
-      } else if (msg.role === 'user') {
-        chatHistory.push({ type: 'user', text: msg.content });
-      } else if (msg.role === 'assistant') {
-        chatHistory.push({ type: 'model', response: [msg.content] });
+      // Build chat history in node-llama-cpp format
+      const chatHistory: Array<{ type: string; text?: string; response?: string[] }> = [];
+
+      for (const msg of historyMessages) {
+        if (msg.role === 'system') {
+          chatHistory.push({ type: 'system', text: msg.content });
+        } else if (msg.role === 'user') {
+          chatHistory.push({ type: 'user', text: msg.content });
+        } else if (msg.role === 'assistant') {
+          chatHistory.push({ type: 'model', response: [msg.content] });
+        }
       }
-    }
 
-    // Set the session's chat history to include previous messages
-    try {
-      const session = this.session as {
-        setChatHistory: (history: unknown[]) => void;
-        prompt: (text: string, options: Record<string, unknown>) => Promise<string>;
-      };
-      session.setChatHistory(chatHistory);
-    } catch (err) {
-      console.warn('[InferenceEngine] setChatHistory not supported, falling back to plain stream:', err);
-      // Fall back to streaming the last message only
-      return this.stream(lastMessage.content, params, onToken);
+      try {
+        const session = this.session as {
+          setChatHistory: (history: unknown[]) => void;
+          prompt: (text: string, options: Record<string, unknown>) => Promise<string>;
+        };
+        session.setChatHistory(chatHistory);
+        console.log('[InferenceEngine] Chat history reset for conversation:', conversationId);
+      } catch (err) {
+        console.warn('[InferenceEngine] setChatHistory not supported, falling back to plain stream:', err);
+        return this.stream(lastMessage.content, params, onToken);
+      }
+
+      this.activeConversationId = conversationId ?? null;
     }
 
     // Now stream inference with just the new user message — the session context includes all history
@@ -237,6 +249,7 @@ export class InferenceEngine {
     this.model = null;
     this.isLoaded = false;
     this.currentModelPath = '';
+    this.activeConversationId = null;
   }
 
   getStats(): InferenceEngineStats {

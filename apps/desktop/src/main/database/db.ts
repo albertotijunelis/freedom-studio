@@ -1,11 +1,11 @@
 // Freedom Studio — Copyright (C) 2026 Alberto Tijunelis Neto <albertotijunelis@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import Database from 'better-sqlite3';
+import Database from 'better-sqlite3-multiple-ciphers';
 import { join } from 'node:path';
-import { mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync } from 'node:fs';
 import { app } from 'electron';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, randomBytes } from 'node:crypto';
 import type { Conversation, Message, SystemPrompt, Persona, Role } from '@freedom-studio/types';
 import { cryptoManager } from '../crypto/cryptoManager';
 
@@ -73,10 +73,34 @@ export class DatabaseManager {
   initialize(): void {
     const userDataPath = app?.getPath?.('userData') || join(process.env.APPDATA || process.env.HOME || '', 'freedom-studio');
     const dbDir = join(userDataPath, 'data');
+    const cryptoDir = join(userDataPath, 'crypto');
     mkdirSync(dbDir, { recursive: true });
+    mkdirSync(cryptoDir, { recursive: true });
 
     const dbPath = join(dbDir, 'freedom-studio.db');
+    const dbKeyPath = join(cryptoDir, 'dbkey');
+    const dbKey = this.getOrCreateDbKey(dbKeyPath);
+    const isNewDb = !existsSync(dbPath);
+
     this.db = new Database(dbPath);
+    this.applyCipher(dbKey);
+
+    if (!isNewDb) {
+      // Verify cipher works — throws if key mismatch or DB was unencrypted
+      try {
+        this.db.prepare('SELECT count(*) FROM sqlite_master').get();
+      } catch {
+        // Existing unencrypted DB from a previous version — backup and recreate
+        console.warn('[DB] Database is not encrypted or key mismatch. Backing up and recreating...');
+        this.db.close();
+        const backupPath = dbPath + '.v2-backup-' + Date.now();
+        renameSync(dbPath, backupPath);
+        console.warn('[DB] Old database backed up to:', backupPath);
+
+        this.db = new Database(dbPath);
+        this.applyCipher(dbKey);
+      }
+    }
 
     // Enable WAL mode for better concurrent performance
     this.db.pragma('journal_mode = WAL');
@@ -84,6 +108,7 @@ export class DatabaseManager {
 
     this.db.exec(SCHEMA);
     this.seedDefaults();
+    console.log('[DB] SQLCipher-encrypted database initialized');
   }
 
   close(): void {
@@ -219,6 +244,24 @@ export class DatabaseManager {
   private getDb(): Database.Database {
     if (!this.db) throw new Error('Database not initialized');
     return this.db;
+  }
+
+  /** Apply SQLCipher encryption to the open database connection. */
+  private applyCipher(hexKey: string): void {
+    if (!this.db) throw new Error('Database not initialized');
+    this.db.pragma("cipher='sqlcipher'");
+    this.db.pragma("legacy=4");
+    this.db.pragma(`key="x'${hexKey}'"`);
+  }
+
+  /** Read or generate the 256-bit database encryption key. */
+  private getOrCreateDbKey(keyPath: string): string {
+    if (existsSync(keyPath)) {
+      return readFileSync(keyPath, 'utf-8').trim();
+    }
+    const key = randomBytes(32).toString('hex');
+    writeFileSync(keyPath, key, { encoding: 'utf-8', mode: 0o600 });
+    return key;
   }
 
   /** Encrypt a string if the crypto manager is unlocked; otherwise store as-is. */

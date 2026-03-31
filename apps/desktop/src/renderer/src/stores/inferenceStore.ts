@@ -133,6 +133,7 @@ export const useInferenceStore = create<InferenceState>((set, get) => ({
       const result = await window.api.invoke('inference:run', {
         prompt,
         messages,
+        conversationId,
         params: {
           temperature: settings.defaultTemperature,
           topP: settings.defaultTopP,

@@ -27,7 +27,7 @@ export function registerInferenceHandlers(): void {
     return wrapHandler(() => inferenceEngine.loadModel(args.modelPath, args.config));
   });
 
-  ipcMain.handle('inference:run', (event, args: { prompt: string; params: InferenceParams; messages?: Array<{ role: string; content: string }> }) => {
+  ipcMain.handle('inference:run', (event, args: { prompt: string; params: InferenceParams; messages?: Array<{ role: string; content: string }>; conversationId?: string }) => {
     return wrapHandler(async () => {
       const window = BrowserWindow.fromWebContents(event.sender);
 
@@ -43,7 +43,7 @@ export function registerInferenceHandlers(): void {
           role: m.role as 'system' | 'user' | 'assistant',
           content: m.content,
         }));
-        const result = await inferenceEngine.streamWithHistory(chatMessages, args.params, tokenCallback);
+        const result = await inferenceEngine.streamWithHistory(chatMessages, args.params, tokenCallback, args.conversationId);
         return result;
       }
 
