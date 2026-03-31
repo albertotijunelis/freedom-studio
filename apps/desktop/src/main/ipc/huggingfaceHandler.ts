@@ -107,6 +107,20 @@ export function registerHuggingFaceHandlers(): void {
   // Download a GGUF file from HuggingFace
   ipcMain.handle('hf:download', (event, args: { modelId: string; filename: string; url: string }) => {
     return wrapHandler(async () => {
+      // Validate URL is actually HuggingFace to prevent SSRF
+      try {
+        const parsed = new URL(args.url);
+        if (!parsed.hostname.endsWith('huggingface.co')) {
+          throw new Error('Downloads are only allowed from huggingface.co');
+        }
+        if (parsed.protocol !== 'https:') {
+          throw new Error('Only HTTPS downloads are allowed');
+        }
+      } catch (e) {
+        if (e instanceof Error && e.message.includes('allowed')) throw e;
+        throw new Error('Invalid download URL');
+      }
+
       const window = BrowserWindow.fromWebContents(event.sender);
 
       const filePath = await modelManager.downloadModel(

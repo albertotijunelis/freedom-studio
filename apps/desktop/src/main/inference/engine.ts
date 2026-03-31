@@ -33,8 +33,7 @@ export class InferenceEngine {
     await this.unload();
 
     try {
-      console.log('[InferenceEngine] Loading model:', modelPath);
-      console.log('[InferenceEngine] Config:', JSON.stringify(config));
+      console.log('[InferenceEngine] Loading model...');
 
       const { getLlama, LlamaChatSession } = await import('node-llama-cpp');
       console.log('[InferenceEngine] node-llama-cpp imported, initializing llama...');

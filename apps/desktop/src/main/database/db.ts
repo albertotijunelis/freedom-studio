@@ -3,7 +3,8 @@
 
 import Database from 'better-sqlite3-multiple-ciphers';
 import { join } from 'node:path';
-import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync, chmodSync } from 'node:fs';
+import { execSync } from 'node:child_process';
 import { app } from 'electron';
 import { randomUUID, randomBytes } from 'node:crypto';
 import type { Conversation, Message, SystemPrompt, Persona, Role } from '@freedom-studio/types';
@@ -261,6 +262,22 @@ export class DatabaseManager {
     }
     const key = randomBytes(32).toString('hex');
     writeFileSync(keyPath, key, { encoding: 'utf-8', mode: 0o600 });
+
+    // On Windows, POSIX mode flags are ignored. Use icacls to restrict to current user only.
+    if (process.platform === 'win32') {
+      try {
+        const username = process.env.USERNAME || '';
+        if (username) {
+          execSync(`icacls "${keyPath}" /inheritance:r /grant:r "${username}:(R,W)" /deny "Everyone:(R,W,D)"`, { stdio: 'ignore' });
+        }
+      } catch {
+        console.warn('[DB] Could not restrict key file permissions via icacls');
+      }
+    } else {
+      // Enforce POSIX permissions (redundant with writeFileSync mode, but explicit)
+      chmodSync(keyPath, 0o600);
+    }
+
     return key;
   }
 
