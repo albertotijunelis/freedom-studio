@@ -105,6 +105,9 @@ export function SetupWizard(): React.JSX.Element {
       const result = await window.api.invoke('crypto:set-master-password', { password: masterPassword }) as { success: boolean; error?: string };
       if (!result.success) throw new Error(result.error);
       setPasswordSet(true);
+      // Clear sensitive data from React state immediately
+      setMasterPassword('');
+      setConfirmPassword('');
     } catch (err) {
       setPasswordError(err instanceof Error ? err.message : 'Failed to set password');
     } finally {

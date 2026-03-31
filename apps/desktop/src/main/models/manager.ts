@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { readdir, stat, unlink, copyFile } from 'node:fs/promises';
-import { join, extname, basename } from 'node:path';
+import { join, extname, basename, resolve, sep } from 'node:path';
 import { createReadStream, createWriteStream, existsSync, mkdirSync, statSync } from 'node:fs';
 import { hashFile, verifyFileChecksum } from '@freedom-studio/crypto-core';
 import type { ModelInfo, DownloadProgress, DiskUsageInfo } from '@freedom-studio/types';
@@ -10,9 +10,9 @@ import type { ModelInfo, DownloadProgress, DiskUsageInfo } from '@freedom-studio
 const SUPPORTED_EXTENSIONS = ['.gguf', '.ggml'];
 
 function isWithinDirectory(filePath: string, directory: string): boolean {
-  const resolvedPath = join(filePath);
-  const resolvedDir = join(directory);
-  return resolvedPath.startsWith(resolvedDir);
+  const resolvedPath = resolve(filePath);
+  const resolvedDir = resolve(directory);
+  return resolvedPath === resolvedDir || resolvedPath.startsWith(resolvedDir + sep);
 }
 
 export class ModelManager {
@@ -120,6 +120,17 @@ export class ModelManager {
         (fetchOptions as Record<string, unknown>).agent = proxyAgent;
       }
 
+      // Validate URL scheme to prevent SSRF
+      let parsedUrl: URL;
+      try {
+        parsedUrl = new URL(url);
+      } catch {
+        throw new Error('Invalid download URL');
+      }
+      if (parsedUrl.protocol !== 'https:') {
+        throw new Error('Only HTTPS downloads are allowed');
+      }
+
       const response = await fetch(url, fetchOptions);
 
       if (!response.ok) {
@@ -141,8 +152,14 @@ export class ModelManager {
         const { done, value } = await reader.read();
         if (done) break;
 
-        fileStream.write(Buffer.from(value));
+        const buf = Buffer.from(value);
+        const canContinue = fileStream.write(buf);
         downloadedBytes += value.byteLength;
+
+        // Handle backpressure — wait for drain if write buffer is full
+        if (!canContinue) {
+          await new Promise<void>((r) => fileStream.once('drain', r));
+        }
 
         const elapsed = (Date.now() - startTime) / 1000;
         const speed = elapsed > 0 ? downloadedBytes / elapsed : 0;
@@ -176,6 +193,10 @@ export class ModelManager {
       });
 
       return filePath;
+    } catch (err) {
+      // Clean up partial file on failed download
+      try { await unlink(filePath); } catch { /* ignore if file doesn't exist */ }
+      throw err;
     } finally {
       this.activeDownloads.delete(fileName);
     }

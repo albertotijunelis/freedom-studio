@@ -444,7 +444,7 @@ function exportAsJSON(messages: Message[], title: string): void {
 /* ── Main Chat Page ── */
 export function ChatPage(): React.JSX.Element {
   const { messages, activeConversationId, conversations, addMessage } = useChatStore();
-  const { loadedModel, isRunning, currentTokens, tokensPerSecond, stopInference } = useInferenceStore();
+  const { loadedModel, isRunning, currentTokens, tokensPerSecond, stopInference, inferenceConversationId } = useInferenceStore();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [showExport, setShowExport] = useState(false);
 
@@ -457,18 +457,36 @@ export function ChatPage(): React.JSX.Element {
   const handleSend = useCallback(async (content: string) => {
     if (!activeConversationId) return;
 
+    // Capture the conversation ID at send time so it doesn't change if user switches chats
+    const targetConversationId = activeConversationId;
+
     // Add user message
     await addMessage('user', content);
 
-    // Trigger inference
+    // Trigger inference — pass the conversation ID so the store tracks it
     try {
       const inferenceStore = useInferenceStore.getState();
-      await inferenceStore.runInference(content);
+      await inferenceStore.runInference(content, targetConversationId);
 
-      // After inference completes, save assistant message
+      // After inference completes, save assistant message to the ORIGINAL conversation
       const finalTokens = useInferenceStore.getState().currentTokens;
       if (finalTokens) {
-        await addMessage('assistant', finalTokens);
+        // Save directly via IPC using captured ID, not current activeConversationId
+        const result = await window.api.invoke('chat:add-message', {
+          conversationId: targetConversationId,
+          role: 'assistant',
+          content: finalTokens,
+        }) as { success: boolean; data?: Message };
+
+        // Only update UI messages if we're still viewing the same conversation
+        if (result.success && result.data) {
+          const currentActiveId = useChatStore.getState().activeConversationId;
+          if (currentActiveId === targetConversationId) {
+            useChatStore.setState((s) => ({
+              messages: [...s.messages, result.data!],
+            }));
+          }
+        }
       }
     } catch {
       // Inference error handled in store
@@ -550,7 +568,9 @@ export function ChatPage(): React.JSX.Element {
               {messages.map((msg: Message) => (
                 <MessageBubble key={msg.id} message={msg} />
               ))}
-              {isRunning && <StreamingMessage content={currentTokens} />}
+              {isRunning && inferenceConversationId === activeConversationId && (
+                <StreamingMessage content={currentTokens} />
+              )}
               <div ref={messagesEndRef} />
             </>
           )}

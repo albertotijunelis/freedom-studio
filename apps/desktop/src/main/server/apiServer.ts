@@ -3,7 +3,7 @@
 
 import { createServer as createHttpsServer, type Server as HttpsServer } from 'node:https';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { inferenceEngine } from '../inference/engine';
 import type { RequestLog } from '@freedom-studio/types';
@@ -95,6 +95,17 @@ export class APIServer {
     this.apiKeys = new Set(keys);
   }
 
+  private verifyApiKey(candidate: string): boolean {
+    const candidateBuf = Buffer.from(candidate);
+    for (const key of this.apiKeys) {
+      const keyBuf = Buffer.from(key);
+      if (candidateBuf.length === keyBuf.length && timingSafeEqual(candidateBuf, keyBuf)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   private async handleRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const startTime = Date.now();
     this.totalRequests++;
@@ -118,7 +129,7 @@ export class APIServer {
       const authHeader = req.headers.authorization;
       const apiKey = authHeader?.replace('Bearer ', '');
 
-      if (!apiKey || !this.apiKeys.has(apiKey)) {
+      if (!apiKey || !this.verifyApiKey(apiKey)) {
         this.sendError(res, 401, 'Invalid API key');
         return;
       }
@@ -222,9 +233,11 @@ export class APIServer {
             res.write(`data: ${JSON.stringify(chunk)}\n\n`);
           }
         });
+        this.logRequest('POST', '/v1/chat/completions', Date.now() - startTime, 200);
       } catch (error) {
         res.write(`data: ${JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' })}\n\n`);
         res.end();
+        this.logRequest('POST', '/v1/chat/completions', Date.now() - startTime, 500);
       }
     } else {
       try {

@@ -72,23 +72,23 @@ export const useSettingsStore = create<SettingsState>((set) => ({
             case 'modelsDirectory':
               set({ modelsDirectory: value }); break;
             case 'defaultGpuLayers':
-              set({ defaultGpuLayers: parseInt(value, 10) }); break;
+              set({ defaultGpuLayers: parseInt(value, 10) || 0 }); break;
             case 'defaultThreadCount':
-              set({ defaultThreadCount: parseInt(value, 10) }); break;
+              set({ defaultThreadCount: parseInt(value, 10) || 4 }); break;
             case 'defaultBatchSize':
-              set({ defaultBatchSize: parseInt(value, 10) }); break;
+              set({ defaultBatchSize: parseInt(value, 10) || 512 }); break;
             case 'defaultContextSize':
-              set({ defaultContextSize: parseInt(value, 10) }); break;
+              set({ defaultContextSize: parseInt(value, 10) || 8192 }); break;
             case 'defaultMaxTokens':
-              set({ defaultMaxTokens: parseInt(value, 10) }); break;
+              set({ defaultMaxTokens: parseInt(value, 10) || 4096 }); break;
             case 'defaultTemperature':
-              set({ defaultTemperature: parseFloat(value) }); break;
+              set({ defaultTemperature: parseFloat(value) || 0.7 }); break;
             case 'defaultTopP':
-              set({ defaultTopP: parseFloat(value) }); break;
+              set({ defaultTopP: parseFloat(value) || 0.9 }); break;
             case 'defaultTopK':
-              set({ defaultTopK: parseInt(value, 10) }); break;
+              set({ defaultTopK: parseInt(value, 10) || 40 }); break;
             case 'defaultRepeatPenalty':
-              set({ defaultRepeatPenalty: parseFloat(value) }); break;
+              set({ defaultRepeatPenalty: parseFloat(value) || 1.1 }); break;
             case 'scanlineEnabled':
               set({ scanlineEnabled: value === 'true' }); break;
             case 'theme':
