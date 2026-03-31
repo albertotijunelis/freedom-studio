@@ -24,15 +24,15 @@ Freedom Studio is a local-first, privacy-focused AI model runner built with Elec
 │  │  • appStore      │    │  └──────────────────────┘  │  │
 │  │  • inferenceStore│    │  ┌──────────────────────┐  │  │
 │  │  • chatStore     │    │  │  Tor Manager          │  │  │
-│  │  • modelsStore   │    │  │  (bundled binary)     │  │  │
+│  │  • modelsStore   │    │  │  (external binary)    │  │  │
 │  │  • serverStore   │    │  └──────────────────────┘  │  │
 │  │  • torStore      │    │  ┌──────────────────────┐  │  │
 │  │  • settingsStore │    │  │  Crypto Manager       │  │  │
-│  └─────────────────┘    │  │  (AES-256-GCM)        │  │  │
+│  └─────────────────┘    │  │  SQLCipher+AES-256-GCM │  │  │
 │                          │  └──────────────────────┘  │  │
 │                          │  ┌──────────────────────┐  │  │
-│                          │  │  Database (SQLite)    │  │  │
-│                          │  │  WAL mode             │  │  │
+│                          │  │  Database (SQLCipher) │  │  │
+│                          │  │  AES-256 + WAL mode   │  │  │
 │                          │  └──────────────────────┘  │  │
 │                          └────────────────────────────┘  │
 └─────────────────────────────────────────────────────────┘
