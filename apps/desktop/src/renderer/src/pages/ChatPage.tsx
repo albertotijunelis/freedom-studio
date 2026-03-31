@@ -117,21 +117,17 @@ function ConversationList(): React.JSX.Element {
           conversations.map((conv: Conversation) => (
             <div
               key={conv.id}
-              onClick={() => {
-                if (isRunning) return; // Block switching during inference
-                setActiveConversation(conv.id);
-              }}
+              onClick={() => setActiveConversation(conv.id)}
               role="button"
               tabIndex={0}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && !isRunning) setActiveConversation(conv.id);
+                if (e.key === 'Enter') setActiveConversation(conv.id);
               }}
               className="w-full text-left px-3 py-2.5 border-b transition-colors group"
               style={{
                 borderColor: 'var(--border-subtle)',
                 background: activeConversationId === conv.id ? 'rgba(0, 255, 136, 0.06)' : 'transparent',
-                cursor: isRunning ? 'not-allowed' : 'pointer',
-                opacity: isRunning && conv.id !== inferenceConversationId ? 0.5 : 1,
+                cursor: 'pointer',
               }}
             >
               <div className="flex items-center justify-between">
@@ -462,7 +458,7 @@ function exportAsJSON(messages: Message[], title: string): void {
 
 /* ── Main Chat Page ── */
 export function ChatPage(): React.JSX.Element {
-  const { messages, activeConversationId, conversations, addMessage } = useChatStore();
+  const { messages, activeConversationId, conversations } = useChatStore();
   const { loadedModel, isRunning, currentTokens, tokensPerSecond, stopInference, inferenceConversationId } = useInferenceStore();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [showExport, setShowExport] = useState(false);
@@ -479,8 +475,22 @@ export function ChatPage(): React.JSX.Element {
     // Capture the conversation ID at send time so it doesn't change if user switches chats
     const targetConversationId = activeConversationId;
 
-    // Add user message
-    await addMessage('user', content);
+    // Add user message directly via IPC using captured ID (not store's activeConversationId)
+    const userMsgResult = await window.api.invoke('chat:add-message', {
+      conversationId: targetConversationId,
+      role: 'user',
+      content,
+    }) as { success: boolean; data?: Message };
+
+    // Only update UI if still viewing the target conversation
+    if (userMsgResult.success && userMsgResult.data) {
+      const currentActiveId = useChatStore.getState().activeConversationId;
+      if (currentActiveId === targetConversationId) {
+        useChatStore.setState((s) => ({
+          messages: [...s.messages, userMsgResult.data!],
+        }));
+      }
+    }
 
     // Trigger inference — pass the conversation ID so the store tracks it
     try {
@@ -490,7 +500,6 @@ export function ChatPage(): React.JSX.Element {
       // After inference completes, save assistant message to the ORIGINAL conversation
       const finalTokens = useInferenceStore.getState().currentTokens;
       if (finalTokens) {
-        // Save directly via IPC using captured ID, not current activeConversationId
         const result = await window.api.invoke('chat:add-message', {
           conversationId: targetConversationId,
           role: 'assistant',
@@ -510,7 +519,7 @@ export function ChatPage(): React.JSX.Element {
     } catch {
       // Inference error handled in store
     }
-  }, [activeConversationId, addMessage]);
+  }, [activeConversationId]);
 
   const handleStop = useCallback(() => {
     stopInference();
@@ -596,12 +605,12 @@ export function ChatPage(): React.JSX.Element {
         </div>
 
         {/* Token stats bar */}
-        {(isRunning || tokensPerSecond > 0) && (
+        {((isRunning && inferenceConversationId === activeConversationId) || tokensPerSecond > 0) && (
           <div className="px-4 py-1 border-t flex items-center gap-4" style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-dark)' }}>
             <span className="text-xs" style={{ color: 'var(--accent-green)', fontFamily: "'JetBrains Mono', monospace" }}>
               {tokensPerSecond.toFixed(1)} tok/s
             </span>
-            {isRunning && (
+            {isRunning && inferenceConversationId === activeConversationId && (
               <span className="text-xs" style={{ color: 'var(--accent-yellow)', fontFamily: "'JetBrains Mono', monospace" }}>
                 generating...
               </span>
@@ -610,7 +619,7 @@ export function ChatPage(): React.JSX.Element {
         )}
 
         {/* Input */}
-        <ChatInput onSend={handleSend} onStop={handleStop} disabled={!loadedModel || !activeConversationId} isRunning={isRunning} />
+        <ChatInput onSend={handleSend} onStop={handleStop} disabled={!loadedModel || !activeConversationId} isRunning={isRunning && inferenceConversationId === activeConversationId} />
       </div>
     </div>
   );

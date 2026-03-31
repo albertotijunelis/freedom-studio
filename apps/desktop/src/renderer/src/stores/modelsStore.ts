@@ -148,3 +148,23 @@ export const useModelsStore = create<ModelsState>((set) => ({
     });
   },
 }));
+
+// Global listener: track ALL download progress events in modelsStore
+// This ensures downloads started from HuggingFace browser also appear in Model Manager
+// We use a module-level flag to prevent duplicate listeners on hot reload
+let _downloadListenerRegistered = false;
+if (typeof window !== 'undefined' && window.api && !_downloadListenerRegistered) {
+  _downloadListenerRegistered = true;
+  window.api.on('models:download-progress', (data: unknown) => {
+    const progress = data as DownloadProgress;
+    useModelsStore.getState().setDownloadProgress(progress);
+
+    // Auto-refresh model list when a download completes
+    if (progress.status === 'completed') {
+      setTimeout(() => {
+        useModelsStore.getState().fetchLocalModels();
+        useModelsStore.getState().fetchDiskUsage();
+      }, 500);
+    }
+  });
+}

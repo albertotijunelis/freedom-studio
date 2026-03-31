@@ -20,16 +20,18 @@ function ModelCard({
   model,
   isLoaded,
   isModelLoading,
+  isDownloading,
   onLoad,
   onDelete,
 }: {
   model: ModelInfo;
   isLoaded: boolean;
   isModelLoading: boolean;
+  isDownloading: boolean;
   onLoad: () => void;
   onDelete: () => void;
 }): React.JSX.Element {
-  const disabled = isLoaded || isModelLoading;
+  const disabled = isLoaded || isModelLoading || isDownloading;
   return (
     <div
       className="glass-panel p-4 flex flex-col gap-3"
@@ -96,7 +98,7 @@ function ModelCard({
             fontFamily: "'JetBrains Mono', monospace",
           }}
         >
-          {isLoaded ? 'Active' : 'Load'}
+          {isLoaded ? 'Active' : isDownloading ? 'Downloading...' : 'Load'}
         </button>
         <button
           onClick={onDelete}
@@ -184,6 +186,16 @@ export function ModelManagerPage(): React.JSX.Element {
   }, [importModel, fetchDiskUsage]);
 
   const handleLoad = useCallback(async (model: ModelInfo) => {
+    // Prevent loading a model that is currently being downloaded
+    const { downloadQueue: currentQueue } = useModelsStore.getState();
+    const isDownloading = currentQueue.some(
+      (d) => d.status === 'downloading' && (d.fileName === model.fileName || d.modelId === model.id)
+    );
+    if (isDownloading) {
+      setToast({ message: 'Cannot load a model while it is still downloading', type: 'error' });
+      return;
+    }
+
     try {
       await loadModel(model.filePath, model.name);
       setToast({ message: `Loaded "${model.name}" successfully`, type: 'success' });
@@ -357,16 +369,22 @@ export function ModelManagerPage(): React.JSX.Element {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {filteredModels.map((model) => (
-              <ModelCard
-                key={model.id}
-                model={model}
-                isLoaded={model.filePath === loadedModelPath}
-                isModelLoading={modelLoading}
-                onLoad={() => handleLoad(model)}
-                onDelete={() => handleDelete(model.id)}
-              />
-            ))}
+            {filteredModels.map((model) => {
+              const downloading = downloadQueue.some(
+                (d) => d.status === 'downloading' && (d.fileName === model.fileName || d.modelId === model.id)
+              );
+              return (
+                <ModelCard
+                  key={model.id}
+                  model={model}
+                  isLoaded={model.filePath === loadedModelPath}
+                  isModelLoading={modelLoading}
+                  isDownloading={downloading}
+                  onLoad={() => handleLoad(model)}
+                  onDelete={() => handleDelete(model.id)}
+                />
+              );
+            })}
           </div>
         )}
       </div>

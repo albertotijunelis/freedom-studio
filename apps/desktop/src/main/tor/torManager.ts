@@ -3,7 +3,7 @@
 
 import { spawn, execSync, type ChildProcess } from 'node:child_process';
 import { join } from 'node:path';
-import { existsSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import { platform } from 'node:os';
 import type { TorStatus, TorConnectionStatus } from '@freedom-studio/types';
 
@@ -36,10 +36,18 @@ export class TorManager {
     }
 
     return new Promise((resolve, reject) => {
+      // Ensure data directory exists before spawning Tor
+      const dataDir = join(process.env.APPDATA || process.env.HOME || '', 'freedom-studio', 'tor-data');
+      if (!existsSync(dataDir)) {
+        mkdirSync(dataDir, { recursive: true, mode: 0o700 });
+      }
+
+      const stderrLines: string[] = [];
+
       this.process = spawn(torBinary, [
         '--SocksPort', String(this.socksPort),
         '--ControlPort', String(this.controlPort),
-        '--DataDirectory', join(process.env.APPDATA || process.env.HOME || '', 'freedom-studio', 'tor-data'),
+        '--DataDirectory', dataDir,
       ], {
         stdio: ['ignore', 'pipe', 'pipe'],
       });
@@ -70,9 +78,12 @@ export class TorManager {
       });
 
       this.process.stderr?.on('data', (data: Buffer) => {
-        const line = data.toString();
-        if (line.includes('[err]') || line.includes('[warn]')) {
-          this.lastError = line.trim();
+        const line = data.toString().trim();
+        if (line) {
+          stderrLines.push(line);
+          if (line.includes('[err]') || line.includes('[warn]')) {
+            this.lastError = line;
+          }
         }
       });
 
@@ -83,7 +94,19 @@ export class TorManager {
         clearTimeout(timeout);
 
         if (code !== 0 && code !== null) {
-          this.lastError = `Tor exited with code ${code}`;
+          // Build a meaningful error from stderr
+          const relevant = stderrLines
+            .filter((l) => l.includes('[err]') || l.includes('[warn]') || l.includes('Permission denied') || l.includes('Address already in use'))
+            .slice(-3)
+            .join(' | ');
+
+          if (relevant) {
+            this.lastError = `Tor exited (code ${code}): ${relevant}`;
+          } else if (stderrLines.length > 0) {
+            this.lastError = `Tor exited (code ${code}): ${stderrLines.slice(-2).join(' | ')}`;
+          } else {
+            this.lastError = `Tor exited with code ${code}. Possible causes: port ${this.socksPort} or ${this.controlPort} already in use, missing permissions, or incompatible Tor binary.`;
+          }
         }
 
         // If Tor exited before connecting, reject the promise
