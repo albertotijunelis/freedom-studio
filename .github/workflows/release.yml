@@ -44,8 +44,6 @@ jobs:
 
       - name: Build desktop app
         run: pnpm --filter @freedom-studio/desktop ${{ matrix.build-cmd }}
-        env:
-          EP_GH_IGNORE_TAG: true
 
       - name: Upload release artifacts
         uses: softprops/action-gh-release@v2
