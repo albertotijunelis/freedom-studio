@@ -41,6 +41,11 @@ export class CryptoManager {
       throw new Error('Master password is already set. Use unlock() instead.');
     }
 
+    // Enforce minimum password strength
+    if (!masterPassword || masterPassword.trim().length < 8) {
+      throw new Error('Master password must be at least 8 characters.');
+    }
+
     const { deriveKey } = await import('@freedom-studio/crypto-core');
 
     const { key, salt } = await deriveKey(masterPassword);

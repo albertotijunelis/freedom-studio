@@ -97,10 +97,9 @@
 
 ### >> Tor Integration
 - Route ALL external connections through **Tor** (model downloads, update checks)
-- Bundled Tor binary — no external install needed
-- Circuit visualization in the UI
-- Bridge mode support for censored regions
+- Supports external Tor binary (Tor Browser or Tor expert bundle)
 - Toggle on/off with one click
+- Bridge mode support for censored regions
 
 ### >> Black Arch Aesthetic
 - Pure black backgrounds, neon green (#00ff88) accents
@@ -195,7 +194,7 @@ Freedom Studio exposes an **OpenAI-compatible API** on localhost. Use it with an
 ### curl
 
 ```bash
-curl https://localhost:1337/v1/chat/completions \
+curl https://localhost:8080/v1/chat/completions \
   -H "Authorization: Bearer fs-YOUR-API-KEY" \
   -H "Content-Type: application/json" \
   --cacert ~/.freedom-studio/tls/cert.pem \
@@ -212,7 +211,7 @@ curl https://localhost:1337/v1/chat/completions \
 from openai import OpenAI
 
 client = OpenAI(
-    base_url="https://localhost:1337/v1",
+    base_url="https://localhost:8080/v1",
     api_key="fs-YOUR-API-KEY",
     # For self-signed TLS cert:
     http_client=httpx.Client(verify="/path/to/cert.pem")
@@ -274,7 +273,7 @@ Full security details: [SECURITY.md](SECURITY.md)
 | Done | AES-256-GCM + Argon2id + SQLCipher encryption |
 | Done | TLS/mTLS on local API server |
 | Done | SHA-256 model checksum verification |
-| In Progress | Tor binary bundling + integration |
+| In Progress | Tor binary bundling + circuit visualization |
 | Planned | Plugin/extension system |
 | Planned | Model quantization tool (GGUF conversion) |
 | Planned | Multi-modal support (vision models) |
