@@ -51,7 +51,7 @@
 | Local encryption | No local encryption | **E2E: TLS + AES-256 + Argon2id** |
 | Tor support | No | **Built-in Tor routing** |
 | API encryption | HTTP on localhost | **HTTPS + mTLS on localhost** |
-| Database | Unencrypted | **SQLCipher (AES-256)** |
+| Database | Unencrypted | **SQLCipher (AES-256) + AES-256-GCM field-level** |
 | License | Proprietary (app) | **GPL-3.0 — forever free** |
 | Price | Free (personal use) | **Free forever (GPL-3.0)** |
 
@@ -250,7 +250,7 @@ Client ──[TLS/mTLS]──▶ Local API Server ──▶ llama.cpp
 
 | Layer | Protection |
 |---|---|
-| Data at rest | SQLCipher (AES-256), Argon2id key derivation |
+| Data at rest | **Dual-layer**: SQLCipher full-DB encryption + AES-256-GCM field-level, Argon2id key derivation |
 | API transport | TLS 1.3 with self-signed cert, optional mTLS |
 | Network traffic | Tor SOCKS5 proxy for all external connections |
 | Model integrity | SHA-256 checksum verification on download |
@@ -271,7 +271,7 @@ Full security details: [SECURITY.md](SECURITY.md)
 | Done | HuggingFace model browser + downloader |
 | Done | Chat UI with streaming tokens + markdown |
 | Done | OpenAI-compatible HTTPS API server |
-| Done | AES-256-GCM + Argon2id encryption |
+| Done | AES-256-GCM + Argon2id + SQLCipher encryption |
 | Done | TLS/mTLS on local API server |
 | Done | SHA-256 model checksum verification |
 | In Progress | Tor binary bundling + integration |
@@ -295,8 +295,8 @@ Full security details: [SECURITY.md](SECURITY.md)
 | Build | Vite + electron-vite |
 | Inference | llama.cpp (node-llama-cpp) |
 | API Server | Express.js (HTTPS) |
-| Encryption | AES-256-GCM, Argon2id, TLS/mTLS |
-| Database | SQLite + SQLCipher |
+| Encryption | SQLCipher (full DB) + AES-256-GCM (field-level) + Argon2id KDF + TLS/mTLS |
+| Database | SQLite + SQLCipher (AES-256 full-disk encryption) |
 | Tor | Bundled tor binary + socks-proxy-agent |
 | Installer | electron-builder |
 | Monorepo | Turborepo + pnpm |

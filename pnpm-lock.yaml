@@ -23,7 +23,7 @@ importers:
       '@freedom-studio/ui':
         specifier: workspace:*
         version: link:../../packages/ui
-      better-sqlite3:
+      better-sqlite3-multiple-ciphers:
         specifier: ^12.8.0
         version: 12.8.0
       express:
@@ -1321,9 +1321,9 @@ packages:
     engines: {node: '>=6.0.0'}
     hasBin: true
 
-  better-sqlite3@12.8.0:
-    resolution: {integrity: sha512-RxD2Vd96sQDjQr20kdP+F+dK/1OUNiVOl200vKBZY8u0vTwysfolF6Hq+3ZK2+h8My9YvZhHsF+RSGZW2VYrPQ==}
-    engines: {node: 20.x || 22.x || 23.x || 24.x || 25.x}
+  better-sqlite3-multiple-ciphers@12.8.0:
+    resolution: {integrity: sha512-Xlt02yJtPUm35hkvRLQRob3gW8pdiz0qKAEc711zijt25+XCwbQlwo5/kq1Oh6hk4bvrBxywoEHNEV7zUbtcbA==}
+    engines: {node: 20.x || 22.x || 23.x || 24.x}
 
   binary-extensions@2.3.0:
     resolution: {integrity: sha512-Ceh+7ox5qe7LJuLHoY0feh3pHuUDHAcRUeyL2VYghZwfpkNIy/+8Ocg0a3UuSoYzavmylwuLWQOf3hl0jjMMIw==}
@@ -4925,7 +4925,7 @@ snapshots:
 
   baseline-browser-mapping@2.10.12: {}
 
-  better-sqlite3@12.8.0:
+  better-sqlite3-multiple-ciphers@12.8.0:
     dependencies:
       bindings: 1.5.0
       prebuild-install: 7.1.3
