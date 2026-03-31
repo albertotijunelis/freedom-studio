@@ -1,7 +1,7 @@
 // Freedom Studio — Copyright (C) 2026 Alberto Tijunelis Neto <albertotijunelis@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { spawn, type ChildProcess } from 'node:child_process';
+import { spawn, execSync, type ChildProcess } from 'node:child_process';
 import { join } from 'node:path';
 import { existsSync } from 'node:fs';
 import { platform } from 'node:os';
@@ -29,9 +29,9 @@ export class TorManager {
 
     const torBinary = this.getTorBinaryPath();
 
-    if (!torBinary || !existsSync(torBinary)) {
+    if (!torBinary) {
       this.connectionStatus = 'error';
-      this.lastError = 'Tor binary not found. Please install Tor or place it in the app directory.';
+      this.lastError = 'Tor binary not found. Install Tor Browser or the Tor expert bundle, then restart Freedom Studio.';
       throw new Error(this.lastError);
     }
 
@@ -155,21 +155,63 @@ export class TorManager {
     return new SocksProxyAgent(`socks5h://127.0.0.1:${this.socksPort}`);
   }
 
-  private getTorBinaryPath(): string {
+  private getTorBinaryPath(): string | null {
     const os = platform();
-
     const appDir = process.resourcesPath || join(__dirname, '..', '..', '..', '..');
 
-    switch (os) {
-      case 'win32':
-        return join(appDir, 'tor', 'tor.exe');
-      case 'darwin':
-        return join(appDir, 'tor', 'tor');
-      case 'linux':
-        return join(appDir, 'tor', 'tor');
-      default:
-        return 'tor'; // Fallback to system PATH
+    // 1. Check bundled binary first
+    const bundledPaths: Record<string, string> = {
+      win32: join(appDir, 'tor', 'tor.exe'),
+      darwin: join(appDir, 'tor', 'tor'),
+      linux: join(appDir, 'tor', 'tor'),
+    };
+
+    const bundled = bundledPaths[os];
+    if (bundled && existsSync(bundled)) return bundled;
+
+    // 2. Check common system install locations
+    const systemPaths: string[] = [];
+    if (os === 'win32') {
+      const programFiles = process.env.ProgramFiles || 'C:\\Program Files';
+      const programFilesX86 = process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)';
+      const localAppData = process.env.LOCALAPPDATA || '';
+      systemPaths.push(
+        join(programFiles, 'Tor Browser', 'Browser', 'TorBrowser', 'Tor', 'tor.exe'),
+        join(programFilesX86, 'Tor Browser', 'Browser', 'TorBrowser', 'Tor', 'tor.exe'),
+        join(localAppData, 'Tor Browser', 'Browser', 'TorBrowser', 'Tor', 'tor.exe'),
+        // Desktop is common for Tor Browser
+        join(process.env.USERPROFILE || '', 'Desktop', 'Tor Browser', 'Browser', 'TorBrowser', 'Tor', 'tor.exe'),
+        join(process.env.USERPROFILE || '', 'OneDrive', 'Desktop', 'Tor Browser', 'Browser', 'TorBrowser', 'Tor', 'tor.exe'),
+      );
+    } else if (os === 'darwin') {
+      systemPaths.push(
+        '/Applications/Tor Browser.app/Contents/MacOS/Tor/tor.real',
+        '/opt/homebrew/bin/tor',
+        '/usr/local/bin/tor',
+      );
+    } else if (os === 'linux') {
+      systemPaths.push(
+        '/usr/bin/tor',
+        '/usr/local/bin/tor',
+        '/snap/bin/tor',
+      );
     }
+
+    for (const p of systemPaths) {
+      if (p && existsSync(p)) return p;
+    }
+
+    // 3. Check system PATH via `which`/`where`
+    try {
+      const cmd = os === 'win32' ? 'where tor' : 'which tor';
+      const result = execSync(cmd, { encoding: 'utf-8', timeout: 5000 }).trim();
+      const firstLine = result.split('\n')[0].trim();
+      if (firstLine && existsSync(firstLine)) return firstLine;
+    } catch {
+      // Not found in PATH
+    }
+
+    return null;
   }
 }
 

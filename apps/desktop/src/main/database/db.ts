@@ -7,6 +7,7 @@ import { mkdirSync } from 'node:fs';
 import { app } from 'electron';
 import { randomUUID } from 'node:crypto';
 import type { Conversation, Message, SystemPrompt, Persona, Role } from '@freedom-studio/types';
+import { cryptoManager } from '../crypto/cryptoManager';
 
 const SCHEMA = `
   CREATE TABLE IF NOT EXISTS conversations (
@@ -97,10 +98,11 @@ export class DatabaseManager {
   createConversation(title: string, modelId = '', systemPrompt = ''): Conversation {
     const now = Date.now();
     const id = randomUUID();
+    const encryptedPrompt = systemPrompt ? this.encryptField(systemPrompt) : '';
 
     this.getDb().prepare(
       'INSERT INTO conversations (id, title, model_id, system_prompt, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
-    ).run(id, title, modelId, systemPrompt, now, now);
+    ).run(id, title, modelId, encryptedPrompt, now, now);
 
     return { id, title, modelId, systemPrompt, personaId: null, createdAt: now, updatedAt: now, messageCount: 0, totalTokens: 0 };
   }
@@ -128,7 +130,7 @@ export class DatabaseManager {
     }
     if (updates.systemPrompt !== undefined) {
       sets.push('system_prompt = ?');
-      values.push(updates.systemPrompt);
+      values.push(updates.systemPrompt ? this.encryptField(updates.systemPrompt) : '');
     }
 
     values.push(id);
@@ -144,11 +146,12 @@ export class DatabaseManager {
   addMessage(conversationId: string, role: Role, content: string, tokenCount = 0): Message {
     const id = randomUUID();
     const now = Date.now();
+    const encryptedContent = this.encryptField(content);
 
     const db = this.getDb();
     db.prepare(
       'INSERT INTO messages (id, conversation_id, role, content, created_at, token_count) VALUES (?, ?, ?, ?, ?, ?)'
-    ).run(id, conversationId, role, content, now, tokenCount);
+    ).run(id, conversationId, role, encryptedContent, now, tokenCount);
 
     db.prepare(
       'UPDATE conversations SET updated_at = ?, message_count = message_count + 1, total_tokens = total_tokens + ? WHERE id = ?'
@@ -174,10 +177,11 @@ export class DatabaseManager {
   createSystemPrompt(name: string, content: string, isDefault = false): SystemPrompt {
     const id = randomUUID();
     const now = Date.now();
+    const encryptedContent = this.encryptField(content);
 
     this.getDb().prepare(
       'INSERT INTO system_prompts (id, name, content, is_default, created_at) VALUES (?, ?, ?, ?, ?)'
-    ).run(id, name, content, isDefault ? 1 : 0, now);
+    ).run(id, name, encryptedContent, isDefault ? 1 : 0, now);
 
     return { id, name, content, isDefault, createdAt: now };
   }
@@ -187,7 +191,7 @@ export class DatabaseManager {
     return rows.map((r) => ({
       id: r.id as string,
       name: r.name as string,
-      content: r.content as string,
+      content: this.decryptField(r.content as string),
       isDefault: r.is_default === 1,
       createdAt: r.created_at as number,
     }));
@@ -217,6 +221,29 @@ export class DatabaseManager {
     return this.db;
   }
 
+  /** Encrypt a string if the crypto manager is unlocked; otherwise store as-is. */
+  private encryptField(plaintext: string): string {
+    if (!cryptoManager.isUnlocked()) return plaintext;
+    try {
+      const payload = cryptoManager.encryptData(plaintext);
+      return `ENC:${JSON.stringify(payload)}`;
+    } catch {
+      return plaintext;
+    }
+  }
+
+  /** Decrypt a string if it was encrypted; otherwise return as-is. */
+  private decryptField(stored: string): string {
+    if (!stored.startsWith('ENC:')) return stored;
+    if (!cryptoManager.isUnlocked()) return '[encrypted — unlock with master password]';
+    try {
+      const payload = JSON.parse(stored.slice(4));
+      return cryptoManager.decryptData(payload);
+    } catch {
+      return '[decryption failed]';
+    }
+  }
+
   private seedDefaults(): void {
     const count = this.getDb().prepare('SELECT COUNT(*) as c FROM system_prompts').get() as { c: number };
     if (count.c === 0) {
@@ -231,7 +258,7 @@ export class DatabaseManager {
       id: row.id as string,
       title: row.title as string,
       modelId: row.model_id as string,
-      systemPrompt: row.system_prompt as string,
+      systemPrompt: this.decryptField(row.system_prompt as string),
       personaId: (row.persona_id as string) || null,
       createdAt: row.created_at as number,
       updatedAt: row.updated_at as number,
@@ -245,7 +272,7 @@ export class DatabaseManager {
       id: row.id as string,
       conversationId: row.conversation_id as string,
       role: row.role as Role,
-      content: row.content as string,
+      content: this.decryptField(row.content as string),
       createdAt: row.created_at as number,
       tokenCount: row.token_count as number,
     };

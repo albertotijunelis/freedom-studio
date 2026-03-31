@@ -76,12 +76,12 @@ export async function generateSelfSignedCert(options: TLSGenerateOptions = {}): 
 }
 
 export function saveCertToDir(certDir: string, certPair: TLSCertPair): { certPath: string; keyPath: string } {
-  mkdirSync(certDir, { recursive: true });
+  mkdirSync(certDir, { recursive: true, mode: 0o700 });
 
   const certPath = join(certDir, 'server.crt');
   const keyPath = join(certDir, 'server.key');
 
-  writeFileSync(certPath, certPair.cert, 'utf-8');
+  writeFileSync(certPath, certPair.cert, { encoding: 'utf-8', mode: 0o644 });
   writeFileSync(keyPath, certPair.key, { encoding: 'utf-8', mode: 0o600 });
 
   return { certPath, keyPath };
