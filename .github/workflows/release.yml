@@ -43,9 +43,7 @@ jobs:
         run: pnpm turbo build --filter=@freedom-studio/types --filter=@freedom-studio/crypto-core --filter=@freedom-studio/ui
 
       - name: Build & publish desktop app
-        run: pnpm --filter @freedom-studio/desktop ${{ matrix.build-cmd }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: pnpm --filter @freedom-studio/desktop ${{ matrix.build-cmd }} -- --publish never
 
       - name: Upload release artifacts
         uses: softprops/action-gh-release@v2
