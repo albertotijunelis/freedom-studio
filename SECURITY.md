@@ -38,7 +38,8 @@ Please include:
 ## Security Architecture
 
 ### Encryption
-- **At rest**: Conversation history and API keys encrypted with AES-256-GCM
+- **Database (Layer 1)**: Full SQLCipher encryption (AES-256) with random 256-bit key — encrypts schema, data, indexes, WAL
+- **Field-level (Layer 2)**: AES-256-GCM encryption on sensitive content (messages, system prompts) when master password is set
 - **Key derivation**: Argon2id with 64MB memory cost, 3 iterations, 4 parallelism
 - **TLS**: Self-signed certificates for localhost API server
 - **mTLS**: Optional mutual TLS for API server authentication
@@ -59,4 +60,4 @@ Please include:
 
 | Version | Supported |
 |---|---|
-| 0.1.x (current) | ✅ |
+| 0.3.x-dev (current) | ✅ |

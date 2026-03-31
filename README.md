@@ -270,10 +270,14 @@ Full security details: [SECURITY.md](SECURITY.md)
 | Done | HuggingFace model browser + downloader |
 | Done | Chat UI with streaming tokens + markdown |
 | Done | OpenAI-compatible HTTPS API server |
-| Done | AES-256-GCM + Argon2id + SQLCipher encryption |
+| Done | Dual-layer encryption: SQLCipher (full DB) + AES-256-GCM (field-level) |
 | Done | TLS/mTLS on local API server |
 | Done | SHA-256 model checksum verification |
-| In Progress | Tor binary bundling + circuit visualization |
+| Done | Conversation export (Markdown + JSON) |
+| Done | Tor SOCKS5 proxy integration (external binary) |
+| Done | System prompt templates + persona profiles |
+| Done | GitHub Actions CI/CD + multi-platform release pipeline |
+| Planned | Tor binary bundling + circuit visualization |
 | Planned | Plugin/extension system |
 | Planned | Model quantization tool (GGUF conversion) |
 | Planned | Multi-modal support (vision models) |
@@ -287,7 +291,7 @@ Full security details: [SECURITY.md](SECURITY.md)
 
 | Layer | Technology |
 |---|---|
-| Desktop | Electron 30+ |
+| Desktop | Electron 33 |
 | Frontend | React 18 + TypeScript |
 | Styling | Tailwind CSS + custom CSS variables |
 | State | Zustand |
