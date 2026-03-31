@@ -3,6 +3,7 @@
 
 import { create } from 'zustand';
 import { useSettingsStore } from './settingsStore';
+import { useChatStore } from './chatStore';
 
 interface InferenceState {
   loadedModel: string | null;
@@ -105,9 +106,33 @@ export const useInferenceStore = create<InferenceState>((set, get) => ({
 
     try {
       const settings = useSettingsStore.getState();
+      const chatState = useChatStore.getState();
+
+      // Build full message history for context-aware inference
+      // Include system prompt + all previous messages + the new user message
+      const conversation = chatState.conversations.find((c) => c.id === conversationId);
+      const messages: Array<{ role: string; content: string }> = [];
+
+      // Add system prompt if the conversation has one
+      if (conversation?.systemPrompt) {
+        messages.push({ role: 'system', content: conversation.systemPrompt });
+      }
+
+      // Add all existing messages from the conversation
+      for (const msg of chatState.messages) {
+        messages.push({ role: msg.role, content: msg.content });
+      }
+
+      // If the latest user message isn't in the store yet (race condition),
+      // ensure it's at the end
+      const lastMsg = messages[messages.length - 1];
+      if (!lastMsg || lastMsg.role !== 'user' || lastMsg.content !== prompt) {
+        messages.push({ role: 'user', content: prompt });
+      }
 
       const result = await window.api.invoke('inference:run', {
         prompt,
+        messages,
         params: {
           temperature: settings.defaultTemperature,
           topP: settings.defaultTopP,

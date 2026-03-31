@@ -12,6 +12,11 @@ export interface InferenceEngineStats {
   contextTotal: number;
 }
 
+export interface ChatMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
 type TokenCallback = (token: string, done: boolean, stats: { tokensGenerated: number; tokensPerSecond: number }) => void;
 
 export class InferenceEngine {
@@ -154,6 +159,62 @@ export class InferenceEngine {
       this.isRunning = false;
       this.abortController = null;
     }
+  }
+
+  /**
+   * Stream inference with full conversation history context.
+   * Maps the conversation messages to LlamaChatSession history format
+   * so the model sees the entire conversation, not just the last prompt.
+   */
+  async streamWithHistory(messages: ChatMessage[], params: InferenceParams, onToken: TokenCallback): Promise<void> {
+    if (!this.isLoaded || !this.session) {
+      throw new Error('No model loaded');
+    }
+
+    if (this.isRunning) {
+      throw new Error('Inference already running');
+    }
+
+    if (messages.length === 0) {
+      throw new Error('No messages provided');
+    }
+
+    // Separate the last user message (to prompt with) from the history
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage.role !== 'user') {
+      throw new Error('Last message must be from user');
+    }
+
+    const historyMessages = messages.slice(0, -1);
+
+    // Build chat history in node-llama-cpp format
+    const chatHistory: Array<{ type: string; text?: string; response?: string[] }> = [];
+
+    for (const msg of historyMessages) {
+      if (msg.role === 'system') {
+        chatHistory.push({ type: 'system', text: msg.content });
+      } else if (msg.role === 'user') {
+        chatHistory.push({ type: 'user', text: msg.content });
+      } else if (msg.role === 'assistant') {
+        chatHistory.push({ type: 'model', response: [msg.content] });
+      }
+    }
+
+    // Set the session's chat history to include previous messages
+    try {
+      const session = this.session as {
+        setChatHistory: (history: unknown[]) => void;
+        prompt: (text: string, options: Record<string, unknown>) => Promise<string>;
+      };
+      session.setChatHistory(chatHistory);
+    } catch (err) {
+      console.warn('[InferenceEngine] setChatHistory not supported, falling back to plain stream:', err);
+      // Fall back to streaming the last message only
+      return this.stream(lastMessage.content, params, onToken);
+    }
+
+    // Now stream inference with just the new user message — the session context includes all history
+    return this.stream(lastMessage.content, params, onToken);
   }
 
   stop(): void {

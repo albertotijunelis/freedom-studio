@@ -6,6 +6,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { inferenceEngine } from '../inference/engine';
+import type { ChatMessage } from '../inference/engine';
 import type { RequestLog } from '@freedom-studio/types';
 
 interface ServerOptions {
@@ -186,12 +187,11 @@ export class APIServer {
       return;
     }
 
-    // Build prompt from messages
-    const prompt = messages.map((m) => {
-      if (m.role === 'system') return `System: ${m.content}`;
-      if (m.role === 'user') return `User: ${m.content}`;
-      return `Assistant: ${m.content}`;
-    }).join('\n') + '\nAssistant:';
+    // Map messages to ChatMessage format for context-aware inference
+    const chatMessages: ChatMessage[] = messages.map((m) => ({
+      role: m.role as 'system' | 'user' | 'assistant',
+      content: m.content,
+    }));
 
     const inferenceParams = {
       temperature: Number(parsed.temperature ?? 0.7),
@@ -214,7 +214,7 @@ export class APIServer {
       const completionId = `chatcmpl-${randomUUID()}`;
 
       try {
-        await inferenceEngine.stream(prompt, inferenceParams, (token, done) => {
+        await inferenceEngine.streamWithHistory(chatMessages, inferenceParams, (token, done) => {
           if (done) {
             res.write(`data: [DONE]\n\n`);
             res.end();
@@ -241,7 +241,11 @@ export class APIServer {
       }
     } else {
       try {
-        const result = await inferenceEngine.run(prompt, inferenceParams);
+        // For non-streaming, collect all tokens from streamWithHistory
+        let fullResult = '';
+        await inferenceEngine.streamWithHistory(chatMessages, inferenceParams, (token, done) => {
+          if (!done) fullResult += token;
+        });
         const latencyMs = Date.now() - startTime;
 
         const response = {
@@ -251,7 +255,7 @@ export class APIServer {
           model: inferenceEngine.getCurrentModelPath(),
           choices: [{
             index: 0,
-            message: { role: 'assistant', content: result },
+            message: { role: 'assistant', content: fullResult },
             finish_reason: 'stop',
           }],
           usage: {
