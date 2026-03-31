@@ -13,6 +13,7 @@ interface InferenceState {
   currentTokens: string;
   tokensPerSecond: number;
   totalTokensGenerated: number;
+  inferenceConversationId: string | null;
 
   setLoadedModel: (name: string | null, path: string | null) => void;
   setLoading: (loading: boolean) => void;
@@ -22,7 +23,7 @@ interface InferenceState {
   setStats: (tps: number, total: number) => void;
 
   loadModel: (modelPath: string, modelName: string) => Promise<void>;
-  runInference: (prompt: string) => Promise<void>;
+  runInference: (prompt: string, conversationId: string) => Promise<void>;
   stopInference: () => Promise<void>;
   unloadModel: () => Promise<void>;
   restoreLastModel: () => Promise<void>;
@@ -37,6 +38,7 @@ export const useInferenceStore = create<InferenceState>((set, get) => ({
   currentTokens: '',
   tokensPerSecond: 0,
   totalTokensGenerated: 0,
+  inferenceConversationId: null,
 
   setLoadedModel: (name, path) => set({ loadedModel: name, loadedModelPath: path }),
   setLoading: (loading) => set({ isLoading: loading }),
@@ -73,14 +75,14 @@ export const useInferenceStore = create<InferenceState>((set, get) => ({
     }
   },
 
-  runInference: async (prompt) => {
-    set({ isRunning: true, currentTokens: '' });
+  runInference: async (prompt, conversationId) => {
+    set({ isRunning: true, currentTokens: '', inferenceConversationId: conversationId });
 
     let cleaned = false;
     const cleanup = (): void => {
       if (!cleaned) {
         cleaned = true;
-        set({ isRunning: false });
+        set({ isRunning: false, inferenceConversationId: null });
         unsub();
       }
     };
@@ -129,7 +131,7 @@ export const useInferenceStore = create<InferenceState>((set, get) => ({
 
   stopInference: async () => {
     await window.api.invoke('inference:stop');
-    set({ isRunning: false });
+    set({ isRunning: false, inferenceConversationId: null });
   },
 
   unloadModel: async () => {

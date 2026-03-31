@@ -93,6 +93,14 @@ function createWindow(): void {
     return { action: 'deny' };
   });
 
+  // Block in-page navigation to external URLs
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    const isLocal = url.startsWith('file://') || (is.dev && url.startsWith('http://localhost'));
+    if (!isLocal) {
+      event.preventDefault();
+    }
+  });
+
   // Load the renderer
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL']);
@@ -118,9 +126,11 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
-  databaseManager.close();
-
   if (process.platform !== 'darwin') {
     app.quit();
   }
+});
+
+app.on('before-quit', () => {
+  databaseManager.close();
 });

@@ -77,12 +77,18 @@ export class TorManager {
       });
 
       this.process.on('exit', (code) => {
+        const wasConnecting = this.connectionStatus !== 'connected';
         this.connectionStatus = 'disconnected';
         this.process = null;
         clearTimeout(timeout);
 
         if (code !== 0 && code !== null) {
           this.lastError = `Tor exited with code ${code}`;
+        }
+
+        // If Tor exited before connecting, reject the promise
+        if (wasConnecting) {
+          reject(new Error(this.lastError || `Tor exited with code ${code}`));
         }
       });
 

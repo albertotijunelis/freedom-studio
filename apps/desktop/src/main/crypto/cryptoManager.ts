@@ -36,6 +36,11 @@ export class CryptoManager {
   }
 
   async setup(masterPassword: string): Promise<void> {
+    // Prevent overwriting existing master password without verification
+    if (this.isSetup()) {
+      throw new Error('Master password is already set. Use unlock() instead.');
+    }
+
     const { deriveKey } = await import('@freedom-studio/crypto-core');
 
     const { key, salt } = await deriveKey(masterPassword);
@@ -50,10 +55,11 @@ export class CryptoManager {
       verificationToken: JSON.stringify(verificationToken),
     };
 
+    const configPath = join(this.configDir, 'master.json');
     writeFileSync(
-      join(this.configDir, 'master.json'),
+      configPath,
       JSON.stringify(config, null, 2),
-      'utf-8'
+      { encoding: 'utf-8', mode: 0o600 }
     );
   }
 
@@ -103,6 +109,9 @@ export class CryptoManager {
   }
 
   lock(): void {
+    if (this.derivedKey) {
+      this.derivedKey.fill(0);
+    }
     this.derivedKey = null;
   }
 
