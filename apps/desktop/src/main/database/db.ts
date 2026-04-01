@@ -70,17 +70,51 @@ const SCHEMA = `
 
 export class DatabaseManager {
   private db: Database.Database | null = null;
+  private pendingInit = false;
+  private dbDir = '';
+  private cryptoDir = '';
 
   initialize(): void {
     const userDataPath = app?.getPath?.('userData') || join(process.env.APPDATA || process.env.HOME || '', 'freedom-studio');
-    const dbDir = join(userDataPath, 'data');
-    const cryptoDir = join(userDataPath, 'crypto');
-    mkdirSync(dbDir, { recursive: true });
-    mkdirSync(cryptoDir, { recursive: true });
+    this.dbDir = join(userDataPath, 'data');
+    this.cryptoDir = join(userDataPath, 'crypto');
+    mkdirSync(this.dbDir, { recursive: true });
+    mkdirSync(this.cryptoDir, { recursive: true });
 
-    const dbPath = join(dbDir, 'freedom-studio.db');
-    const dbKeyPath = join(cryptoDir, 'dbkey');
-    const dbKey = this.getOrCreateDbKey(dbKeyPath);
+    // If dbkey is encrypted and master password not yet unlocked, defer DB init
+    if (cryptoManager.hasEncryptedDbKey() && !cryptoManager.isUnlocked()) {
+      console.log('[DB] Encrypted database key found — deferring init until master password unlock');
+      this.pendingInit = true;
+      return;
+    }
+
+    const dbKey = this.getOrCreateDbKey();
+    this.openDatabase(dbKey);
+  }
+
+  /**
+   * Initialize the database after the master password has been unlocked.
+   * Called from the crypto IPC handler when the encrypted dbkey can now be decrypted.
+   */
+  initializeAfterUnlock(): void {
+    if (!this.pendingInit) return;
+    if (this.db) return; // Already initialized
+
+    const dbKey = this.getOrCreateDbKey();
+    this.openDatabase(dbKey);
+    this.pendingInit = false;
+    console.log('[DB] Database initialized after master password unlock');
+  }
+
+  /**
+   * Whether the database is waiting for the master password to be unlocked.
+   */
+  isPendingUnlock(): boolean {
+    return this.pendingInit;
+  }
+
+  private openDatabase(dbKey: string): void {
+    const dbPath = join(this.dbDir, 'freedom-studio.db');
     const isNewDb = !existsSync(dbPath);
 
     this.db = new Database(dbPath);
@@ -256,10 +290,23 @@ export class DatabaseManager {
   }
 
   /** Read or generate the 256-bit database encryption key. */
-  private getOrCreateDbKey(keyPath: string): string {
+  private getOrCreateDbKey(): string {
+    const encKeyPath = join(this.cryptoDir, 'dbkey.enc');
+    const keyPath = join(this.cryptoDir, 'dbkey');
+
+    // Encrypted dbkey takes priority (master password is set)
+    if (existsSync(encKeyPath)) {
+      const decrypted = cryptoManager.decryptDbKey();
+      if (decrypted) return decrypted;
+      throw new Error('Failed to decrypt database key — is the master password correct?');
+    }
+
+    // Plaintext key (no master password set)
     if (existsSync(keyPath)) {
       return readFileSync(keyPath, 'utf-8').trim();
     }
+
+    // First run — generate new key
     const key = randomBytes(32).toString('hex');
     writeFileSync(keyPath, key, { encoding: 'utf-8', mode: 0o600 });
 

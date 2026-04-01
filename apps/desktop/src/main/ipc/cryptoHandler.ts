@@ -3,6 +3,7 @@
 
 import { ipcMain } from 'electron';
 import { cryptoManager } from '../crypto/cryptoManager';
+import { databaseManager } from '../database/db';
 
 interface IPCResult<T = unknown> {
   success: boolean;
@@ -26,7 +27,14 @@ export function registerCryptoHandlers(): void {
   });
 
   ipcMain.handle('crypto:unlock', (_event, args: { password: string }) => {
-    return wrapHandler(() => cryptoManager.unlock(args.password));
+    return wrapHandler(async () => {
+      const success = await cryptoManager.unlock(args.password);
+      // If DB was deferred because dbkey was encrypted, initialize it now
+      if (success && databaseManager.isPendingUnlock()) {
+        databaseManager.initializeAfterUnlock();
+      }
+      return success;
+    });
   });
 
   ipcMain.handle('crypto:generate-api-key', () => {
