@@ -1,7 +1,7 @@
 // Freedom Studio — Copyright (C) 2026 Alberto Tijunelis Neto <albertotijunelis@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, createContext, useContext, useMemo } from 'react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useChatStore } from '../stores/chatStore';
@@ -164,10 +164,54 @@ function ConversationList(): React.JSX.Element {
   );
 }
 
-/* ── Code Block with copy button ── */
+/**
+ * Extract a filename from code content by checking the first line for comment-style filenames.
+ * AI models commonly write filenames as:
+ *   // src/index.ts          (JS/TS/C/Java style comment)
+ *   # main.py                (Python/Ruby/Shell style comment)
+ *   <!-- index.html -->      (HTML style comment)
+ *   // File: utils/helper.ts (File: prefix pattern)
+ */
+function extractFilenameFromContent(content: string): string | null {
+  const firstLine = content.split('\n')[0]?.trim() || '';
+
+  const patterns = [
+    /^\/\/\s*(?:File(?:name)?:\s*)?(\S+\.\w+)\s*$/i,   // // filename.ts  or  // File: filename.ts
+    /^#\s*(?:File(?:name)?:\s*)?(\S+\.\w+)\s*$/i,       // # filename.py  or  # File: filename.py
+    /^<!--\s*(\S+\.\w+)\s*-->$/,                         // <!-- filename.html -->
+    /^\/\*\s*(\S+\.\w+)\s*\*\/$/,                       // /* filename.css */
+    /^--\s*(\S+\.\w+)\s*$/,                              // -- filename.sql
+    /^;\s*(?:File(?:name)?:\s*)?(\S+\.\w+)\s*$/i,       // ; filename.asm or ; File: config.ini
+  ];
+
+  for (const pattern of patterns) {
+    const match = firstLine.match(pattern);
+    if (match?.[1]) return match[1];
+  }
+  return null;
+}
+
+/**
+ * Context to pass pre-parsed code block metadata from MarkdownContent down to CodeBlock.
+ * This is the most reliable way to get fence meta since remark/rehype don't forward it
+ * consistently across react-markdown versions.
+ */
+interface CodeBlockInfo { content: string; language: string; filename: string | null }
+const CodeBlocksContext = createContext<CodeBlockInfo[]>([]);
+
+/* ── Code Block with copy + save buttons ── */
 function CodeBlock({ children, className }: { children: string; className?: string }): React.JSX.Element {
   const [copied, setCopied] = useState(false);
+  const [saved, setSaved] = useState(false);
   const language = className?.replace('language-', '') || '';
+  const codeBlocks = useContext(CodeBlocksContext);
+
+  // Match this code block against the pre-parsed blocks by content to get the filename
+  const trimmedContent = children.trim();
+  const matchedBlock = codeBlocks.find((b) => b.content.trim() === trimmedContent);
+  const detectedName = matchedBlock?.filename || extractFilenameFromContent(children) || null;
+  // Display name: show detected filename or fall back to language
+  const displayLabel = detectedName || language || 'code';
 
   const handleCopy = useCallback(() => {
     navigator.clipboard.writeText(children);
@@ -175,19 +219,40 @@ function CodeBlock({ children, className }: { children: string; className?: stri
     setTimeout(() => setCopied(false), 2000);
   }, [children]);
 
+  const handleSave = useCallback(async () => {
+    const result = (await window.api.invoke('file:save-dialog', {
+      content: children,
+      language: language || undefined,
+      suggestedName: detectedName || undefined,
+    })) as { success?: boolean; data?: { saved?: boolean } } | undefined;
+    if (result?.success && result.data?.saved) {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    }
+  }, [children, language, detectedName]);
+
   return (
     <div className="relative my-2 rounded overflow-hidden" style={{ background: '#0d0d0d', border: '1px solid var(--border-subtle)' }}>
       <div className="flex items-center justify-between px-3 py-1 border-b" style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-dark)' }}>
-        <span className="text-xs" style={{ color: 'var(--text-muted)', fontFamily: "'JetBrains Mono', monospace" }}>
-          {language || 'code'}
+        <span className="text-xs" style={{ color: 'var(--text-muted)', fontFamily: "'JetBrains Mono', monospace" }} title={detectedName || undefined}>
+          {displayLabel}
         </span>
-        <button
-          onClick={handleCopy}
-          className="text-xs px-2 py-0.5 cursor-pointer hover:bg-white/5 rounded transition-colors"
-          style={{ color: copied ? 'var(--accent-green)' : 'var(--text-secondary)', fontFamily: "'JetBrains Mono', monospace" }}
-        >
-          {copied ? 'Copied!' : 'Copy'}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleSave}
+            className="text-xs px-2 py-0.5 cursor-pointer hover:bg-white/5 rounded transition-colors"
+            style={{ color: saved ? 'var(--accent-green)' : 'var(--text-secondary)', fontFamily: "'JetBrains Mono', monospace" }}
+          >
+            {saved ? 'Saved!' : 'Save'}
+          </button>
+          <button
+            onClick={handleCopy}
+            className="text-xs px-2 py-0.5 cursor-pointer hover:bg-white/5 rounded transition-colors"
+            style={{ color: copied ? 'var(--accent-green)' : 'var(--text-secondary)', fontFamily: "'JetBrains Mono', monospace" }}
+          >
+            {copied ? 'Copied!' : 'Copy'}
+          </button>
+        </div>
       </div>
       <pre className="p-3 overflow-x-auto text-xs leading-relaxed" style={{ fontFamily: "'Fira Code', monospace", color: 'var(--text-code)' }}>
         <code>{children}</code>
@@ -255,20 +320,128 @@ const markdownComponents = {
 };
 
 /* ── Render markdown content ── */
+/**
+ * Pre-parse all code blocks from raw markdown into CodeBlockInfo array.
+ * Used by CodeBlock via context to get filenames for each block.
+ */
+function parseCodeBlocks(markdown: string): CodeBlockInfo[] {
+  const blocks: CodeBlockInfo[] = [];
+  const fenceRegex = /```([\w+#.-]*)[ \t]*(\S[^\n]*)?\n([\s\S]*?)\n?```/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = fenceRegex.exec(markdown)) !== null) {
+    const lang = match[1] || '';
+    const fenceMeta = match[2]?.trim() || '';
+    const content = match[3];
+
+    let filename: string | null = null;
+    // Priority 1: fence meta with file extension
+    if (fenceMeta && /\.[a-zA-Z0-9]+$/.test(fenceMeta)) {
+      filename = fenceMeta;
+    }
+    // Priority 2: first-line comment
+    if (!filename) {
+      filename = extractFilenameFromContent(content);
+    }
+
+    blocks.push({ content, language: lang, filename });
+  }
+
+  return blocks;
+}
+
 function MarkdownContent({ content }: { content: string }): React.JSX.Element {
+  const codeBlocks = useMemo(() => parseCodeBlocks(content), [content]);
+
   return (
-    <div className="text-sm leading-relaxed markdown-content" style={{ color: 'var(--text-primary)', fontFamily: "'Inter', sans-serif" }}>
-      <Markdown remarkPlugins={[remarkGfm]} components={markdownComponents as never}>
-        {content}
-      </Markdown>
-    </div>
+    <CodeBlocksContext.Provider value={codeBlocks}>
+      <div className="text-sm leading-relaxed markdown-content" style={{ color: 'var(--text-primary)', fontFamily: "'Inter', sans-serif" }}>
+        <Markdown remarkPlugins={[remarkGfm]} components={markdownComponents as never}>
+          {content}
+        </Markdown>
+      </div>
+    </CodeBlocksContext.Provider>
   );
+}
+
+/**
+ * Extract ALL code blocks from markdown content.
+ * For each block, determine a filename from:
+ *   1. Fence meta: ```python main.py  → "main.py"
+ *   2. First-line comment: // src/index.ts → "src/index.ts"
+ *   3. Language fallback: ```typescript → "code.ts"
+ * Returns all blocks — named and unnamed — so Save All captures everything.
+ */
+const LANG_EXTENSIONS: Record<string, string> = {
+  javascript: '.js', typescript: '.ts', python: '.py', rust: '.rs', go: '.go',
+  java: '.java', c: '.c', cpp: '.cpp', 'c++': '.cpp', csharp: '.cs', 'c#': '.cs',
+  html: '.html', css: '.css', scss: '.scss', sass: '.scss', less: '.less',
+  json: '.json', yaml: '.yaml', yml: '.yaml', toml: '.toml', xml: '.xml',
+  markdown: '.md', md: '.md', sql: '.sql', bash: '.sh', shell: '.sh', sh: '.sh',
+  zsh: '.sh', powershell: '.ps1', ps1: '.ps1', dockerfile: '', docker: '',
+  ruby: '.rb', php: '.php', swift: '.swift', kotlin: '.kt', scala: '.scala',
+  lua: '.lua', perl: '.pl', r: '.r', jsx: '.jsx', tsx: '.tsx', vue: '.vue',
+  svelte: '.svelte', graphql: '.graphql', proto: '.proto', ini: '.ini',
+  conf: '.conf', env: '.env', txt: '.txt', text: '.txt',
+};
+
+function extractAllCodeBlocks(markdown: string): Array<{ path: string; content: string; language: string }> {
+  const blocks: Array<{ path: string; content: string; language: string }> = [];
+  // Robust regex: match ```lang meta\ncontent\n``` including optional whitespace
+  const fenceRegex = /```([\w+#.-]*)[ \t]*(\S[^\n]*)?\n([\s\S]*?)\n?```/g;
+  let match: RegExpExecArray | null;
+  let counter = 0;
+
+  while ((match = fenceRegex.exec(markdown)) !== null) {
+    const lang = match[1] || '';
+    const fenceMeta = match[2]?.trim() || '';
+    const content = match[3];
+    counter++;
+
+    // Try fence meta for filename
+    let name = '';
+    if (fenceMeta && /\.[a-zA-Z0-9]+$/.test(fenceMeta)) {
+      name = fenceMeta;
+    }
+    // Try first-line comment
+    if (!name) {
+      name = extractFilenameFromContent(content) || '';
+    }
+    // Fallback: generate from language
+    if (!name) {
+      const ext = LANG_EXTENSIONS[lang.toLowerCase()];
+      if (ext !== undefined) {
+        name = ext === '' ? lang : `code_${counter}${ext}`;
+      } else {
+        name = `code_${counter}.txt`;
+      }
+    }
+
+    blocks.push({ path: name, content, language: lang });
+  }
+
+  return blocks;
 }
 
 /* ── Message Bubble ── */
 function MessageBubble({ message }: { message: Message }): React.JSX.Element {
   const isUser = message.role === 'user';
   const isSystem = message.role === 'system';
+  const [savedAll, setSavedAll] = useState(false);
+
+  // Check for multi-file save capability (assistant messages with 2+ code blocks)
+  const codeBlocks = message.role === 'assistant' ? extractAllCodeBlocks(message.content) : [];
+  const canSaveAll = codeBlocks.length >= 2;
+
+  const handleSaveAll = useCallback(async () => {
+    const result = (await window.api.invoke('file:save-all-dialog', {
+      files: codeBlocks.map((b) => ({ path: b.path, content: b.content })),
+    })) as { success?: boolean; data?: { saved?: boolean; count?: number } } | undefined;
+    if (result?.success && result.data?.saved) {
+      setSavedAll(true);
+      setTimeout(() => setSavedAll(false), 3000);
+    }
+  }, [codeBlocks]);
 
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-3`}>
@@ -305,12 +478,27 @@ function MessageBubble({ message }: { message: Message }): React.JSX.Element {
           </div>
         )}
 
-        {/* Token count */}
-        {message.tokenCount > 0 && (
-          <span className="text-xs mt-1 block" style={{ color: 'var(--text-muted)', fontSize: 10 }}>
-            {message.tokenCount} tokens
-          </span>
-        )}
+        {/* Token count + Save All */}
+        <div className="flex items-center gap-3 mt-1">
+          {message.tokenCount > 0 && (
+            <span className="text-xs" style={{ color: 'var(--text-muted)', fontSize: 10 }}>
+              {message.tokenCount} tokens
+            </span>
+          )}
+          {canSaveAll && (
+            <button
+              onClick={handleSaveAll}
+              className="text-xs px-2 py-0.5 cursor-pointer hover:bg-white/5 rounded transition-colors"
+              style={{
+                color: savedAll ? 'var(--accent-green)' : 'var(--accent-cyan)',
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: 10,
+              }}
+            >
+              {savedAll ? `Saved ${codeBlocks.length} files!` : `Save All ${codeBlocks.length} Files`}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -466,13 +654,32 @@ export function ChatPage(): React.JSX.Element {
   const { messages, activeConversationId, conversations } = useChatStore();
   const { loadedModel, isRunning, currentTokens, tokensPerSecond, stopInference, inferenceConversationId } = useInferenceStore();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const userIsScrolledUp = useRef(false);
   const [showExport, setShowExport] = useState(false);
 
   const activeConv = conversations.find((c) => c.id === activeConversationId);
 
+  // Track whether user has scrolled away from the bottom
+  const handleScroll = useCallback(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    // Consider "at bottom" if within 80px of the bottom
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    userIsScrolledUp.current = !atBottom;
+  }, []);
+
+  // Only auto-scroll if user is already at the bottom
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (!userIsScrolledUp.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [messages, currentTokens]);
+
+  // Reset scroll tracking when switching conversations
+  useEffect(() => {
+    userIsScrolledUp.current = false;
+  }, [activeConversationId]);
 
   const handleSend = useCallback(async (content: string) => {
     if (!activeConversationId) return;
@@ -581,7 +788,7 @@ export function ChatPage(): React.JSX.Element {
         )}
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-4">
+        <div ref={scrollContainerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto custom-scrollbar p-4">
           {!activeConversationId ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">

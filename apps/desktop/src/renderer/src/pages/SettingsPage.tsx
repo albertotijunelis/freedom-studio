@@ -101,6 +101,108 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (val: boole
   );
 }
 
+/* ── Update Checker ── */
+interface UpdateStatus {
+  status: string;
+  version?: string;
+  percent?: number;
+  message?: string;
+}
+
+function UpdateChecker(): React.JSX.Element {
+  const [updateStatus, setUpdateStatus] = useState<UpdateStatus | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = window.api.on('update:status', (_data: unknown) => {
+      setUpdateStatus(_data as UpdateStatus);
+    });
+    return unsubscribe;
+  }, []);
+
+  const handleCheck = useCallback(async () => {
+    setUpdateStatus({ status: 'checking' });
+    await window.api.invoke('update:check');
+  }, []);
+
+  const handleDownload = useCallback(async () => {
+    await window.api.invoke('update:download');
+  }, []);
+
+  const handleInstall = useCallback(async () => {
+    await window.api.invoke('update:install');
+  }, []);
+
+  const statusColor =
+    updateStatus?.status === 'available' || updateStatus?.status === 'ready'
+      ? 'var(--accent-green)'
+      : updateStatus?.status === 'error'
+        ? 'var(--accent-red)'
+        : 'var(--text-muted)';
+
+  return (
+    <div className="flex items-center gap-3 mt-2">
+      {(!updateStatus || updateStatus.status === 'up-to-date' || updateStatus.status === 'error' || updateStatus.status === 'dev') ? (
+        <button
+          onClick={handleCheck}
+          className="text-xs px-3 py-1.5 rounded cursor-pointer transition-colors hover:bg-white/5"
+          style={{
+            color: 'var(--accent-cyan)',
+            border: '1px solid rgba(0, 212, 255, 0.2)',
+            fontFamily: "'JetBrains Mono', monospace",
+          }}
+        >
+          Check for Updates
+        </button>
+      ) : updateStatus.status === 'available' ? (
+        <button
+          onClick={handleDownload}
+          className="text-xs px-3 py-1.5 rounded cursor-pointer transition-colors hover:bg-white/5"
+          style={{
+            color: 'var(--accent-green)',
+            border: '1px solid var(--border-accent)',
+            fontFamily: "'JetBrains Mono', monospace",
+          }}
+        >
+          Download v{updateStatus.version}
+        </button>
+      ) : updateStatus.status === 'ready' ? (
+        <button
+          onClick={handleInstall}
+          className="text-xs px-3 py-1.5 rounded cursor-pointer transition-colors hover:bg-white/5"
+          style={{
+            color: 'var(--accent-green)',
+            border: '1px solid var(--border-accent)',
+            fontFamily: "'JetBrains Mono', monospace",
+            textShadow: '0 0 8px var(--accent-green)',
+          }}
+        >
+          Install v{updateStatus.version} & Restart
+        </button>
+      ) : updateStatus.status === 'checking' ? (
+        <span className="text-xs" style={{ color: 'var(--text-muted)', fontFamily: "'JetBrains Mono', monospace" }}>
+          Checking...
+        </span>
+      ) : null}
+
+      {updateStatus?.status === 'downloading' && (
+        <span className="text-xs" style={{ color: 'var(--accent-cyan)', fontFamily: "'JetBrains Mono', monospace" }}>
+          Downloading... {updateStatus.percent?.toFixed(0)}%
+        </span>
+      )}
+
+      {updateStatus && updateStatus.status !== 'checking' && updateStatus.status !== 'downloading' && (
+        <span className="text-xs" style={{ color: statusColor, fontFamily: "'JetBrains Mono', monospace" }}>
+          {updateStatus.status === 'up-to-date' && 'You\'re on the latest version'}
+          {updateStatus.status === 'available' && `v${updateStatus.version} available`}
+          {updateStatus.status === 'ready' && `v${updateStatus.version} ready to install`}
+          {updateStatus.status === 'error' && (updateStatus.message || 'Update check failed')}
+          {updateStatus.status === 'dev' && 'Updates disabled in dev mode'}
+        </span>
+      )}
+    </div>
+  );
+}
+
 /* ── Main Settings Page ── */
 export function SettingsPage(): React.JSX.Element {
   const settings = useSettingsStore();
@@ -446,16 +548,17 @@ export function SettingsPage(): React.JSX.Element {
         {/* ── About ── */}
         <SectionHeader title="About" />
 
-        <div className="py-3">
+        <div className="py-3 space-y-2">
           <p className="text-xs" style={{ color: 'var(--text-secondary)', fontFamily: "'JetBrains Mono', monospace" }}>
-            Freedom Studio v0.3.0-dev
+            Freedom Studio v0.3.1-dev
           </p>
-          <p className="text-xs mt-1" style={{ color: 'var(--text-muted)', fontFamily: "'JetBrains Mono', monospace" }}>
+          <p className="text-xs" style={{ color: 'var(--text-muted)', fontFamily: "'JetBrains Mono', monospace" }}>
             Copyright (C) 2026 Alberto Tijunelis Neto
           </p>
-          <p className="text-xs mt-1" style={{ color: 'var(--text-muted)', fontFamily: "'JetBrains Mono', monospace" }}>
+          <p className="text-xs" style={{ color: 'var(--text-muted)', fontFamily: "'JetBrains Mono', monospace" }}>
             License: GNU GPL v3 — Free as in freedom.
           </p>
+          <UpdateChecker />
         </div>
       </div>
     </div>

@@ -1,6 +1,6 @@
 {
   "name": "@freedom-studio/desktop",
-  "version": "0.3.0-dev",
+  "version": "0.3.1-dev",
   "description": "Freedom Studio — Local-first AI model runner",
   "author": "Alberto Tijunelis Neto <albertotijunelis@gmail.com>",
   "license": "GPL-3.0-or-later",
@@ -27,6 +27,7 @@
     "@freedom-studio/types": "workspace:*",
     "@freedom-studio/ui": "workspace:*",
     "better-sqlite3-multiple-ciphers": "^12.8.0",
+    "electron-updater": "^6.8.3",
     "express": "^5.2.1",
     "node-llama-cpp": "^3.18.1",
     "react": "^18.3.0",
@@ -70,6 +71,11 @@
       "out/**/*"
     ],
     "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "publish": {
+      "provider": "github",
+      "owner": "albertotijunelis",
+      "repo": "freedom-studio"
+    },
     "win": {
       "target": [
         {

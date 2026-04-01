@@ -78,6 +78,7 @@
 - Multi-conversation support with persistent history
 - System prompt editor with templates
 - **Markdown rendering** with syntax-highlighted code blocks (Shiki)
+- **Save code blocks to disk** — one-click save with native file dialog and language-aware extensions
 - Export conversations as Markdown or JSON
 - Streaming responses with real-time token display
 
@@ -277,6 +278,7 @@ Full security details: [SECURITY.md](SECURITY.md)
 | Done | Tor SOCKS5 proxy integration (external binary) |
 | Done | System prompt templates + persona profiles |
 | Done | GitHub Actions CI/CD + multi-platform release pipeline |
+| Done | Save AI-generated code blocks to disk (native file dialog) |
 | Planned | Tor binary bundling + circuit visualization |
 | Planned | Plugin/extension system |
 | Planned | Model quantization tool (GGUF conversion) |
@@ -339,6 +341,6 @@ See [LICENSE](LICENSE) for the full text.
 </p>
 
 <p align="center">
-  <sub>Built with paranoia and love by <a href="mailto:albertotijunelis@gmail.com">Alberto Tijunelis Neto</a></sub><br>
+  <sub>Built with paranoia and purpose by <a href="mailto:albertotijunelis@gmail.com">Alberto Tijunelis Neto</a></sub><br>
   <sub>Contact: albertotijunelis@gmail.com</sub>
 </p>

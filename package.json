@@ -1,6 +1,6 @@
 {
   "name": "freedom-studio",
-  "version": "0.3.0-dev",
+  "version": "0.3.1-dev",
   "private": true,
   "description": "Open-source, local-first AI model runner — privacy-first alternative to LM Studio",
   "author": "Alberto Tijunelis Neto <albertotijunelis@gmail.com>",

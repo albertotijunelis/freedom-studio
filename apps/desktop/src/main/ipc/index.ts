@@ -8,6 +8,8 @@ import { registerTorHandlers } from './torHandler';
 import { registerCryptoHandlers } from './cryptoHandler';
 import { registerChatHandlers } from './chatHandler';
 import { registerHuggingFaceHandlers } from './huggingfaceHandler';
+import { registerFileHandlers } from './fileHandler';
+import { registerUpdateHandlers, initializeAutoUpdater } from './updateHandler';
 
 export function registerAllHandlers(): void {
   registerInferenceHandlers();
@@ -17,4 +19,7 @@ export function registerAllHandlers(): void {
   registerCryptoHandlers();
   registerChatHandlers();
   registerHuggingFaceHandlers();
+  registerFileHandlers();
+  registerUpdateHandlers();
+  initializeAutoUpdater();
 }

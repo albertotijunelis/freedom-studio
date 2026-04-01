@@ -41,12 +41,30 @@ export function SetupWizard(): React.JSX.Element {
     }).catch(() => {});
   }, []);
 
-  // Detect GPU on mount
+  // Detect GPU on mount — actually call the detection IPC and auto-set recommended layers
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setGpuInfo('CPU mode available. GPU layers can be configured per model in Settings.');
-    }, 800);
-    return () => clearTimeout(timer);
+    (async () => {
+      try {
+        const result = await window.api.invoke('inference:detect-gpu') as {
+          success: boolean;
+          data?: { backend: string; vramMb: number; deviceName: string; suggestedGpuLayers: number };
+        };
+        if (result.success && result.data) {
+          const { backend, vramMb, deviceName, suggestedGpuLayers } = result.data;
+          const vramStr = vramMb > 0 ? ` (${vramMb} MB VRAM)` : '';
+          setGpuInfo(`${deviceName}${vramStr} — ${backend.toUpperCase()} — Recommended layers: ${suggestedGpuLayers}`);
+
+          // Auto-apply recommended GPU layers to settings
+          if (suggestedGpuLayers > 0) {
+            await window.api.invoke('settings:set', { key: 'defaultGpuLayers', value: String(suggestedGpuLayers) });
+          }
+        } else {
+          setGpuInfo('CPU mode available. GPU layers can be configured in Settings.');
+        }
+      } catch {
+        setGpuInfo('CPU mode available. GPU layers can be configured in Settings.');
+      }
+    })();
   }, []);
 
   // Check if TLS cert already exists

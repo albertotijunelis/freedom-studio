@@ -52,6 +52,12 @@ const ALLOWED_INVOKE_CHANNELS = [
   'hf:search',
   'hf:get-files',
   'hf:download',
+  'file:save-dialog',
+  'file:save-all-dialog',
+  'update:check',
+  'update:download',
+  'update:install',
+  'update:get-version',
 ] as const;
 
 const ALLOWED_ON_CHANNELS = [
@@ -60,6 +66,7 @@ const ALLOWED_ON_CHANNELS = [
   'models:import-progress',
   'server:status',
   'tor:status',
+  'update:status',
 ] as const;
 
 type AllowedInvokeChannel = (typeof ALLOWED_INVOKE_CHANNELS)[number];
