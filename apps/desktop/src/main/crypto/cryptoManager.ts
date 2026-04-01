@@ -3,6 +3,7 @@
 
 import { join } from 'node:path';
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { execSync } from 'node:child_process';
 import { app } from 'electron';
 import {
   encrypt,
@@ -66,6 +67,18 @@ export class CryptoManager {
       JSON.stringify(config, null, 2),
       { encoding: 'utf-8', mode: 0o600 }
     );
+
+    // On Windows, POSIX mode flags are ignored — restrict via icacls
+    if (process.platform === 'win32') {
+      try {
+        const username = process.env.USERNAME || '';
+        if (username) {
+          execSync(`icacls "${configPath}" /inheritance:r /grant:r "${username}:(R,W)"`, { stdio: 'ignore' });
+        }
+      } catch {
+        // Silent fallback — file is still usable
+      }
+    }
   }
 
   async unlock(masterPassword: string): Promise<boolean> {

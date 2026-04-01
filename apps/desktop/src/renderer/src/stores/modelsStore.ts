@@ -22,6 +22,7 @@ interface ModelsState {
   fetchDiskUsage: () => Promise<void>;
   deleteModel: (modelId: string) => Promise<void>;
   downloadModel: (modelId: string, quantization: string) => Promise<void>;
+  cancelDownload: (fileName: string) => Promise<void>;
   importModel: () => Promise<ModelInfo | null>;
   setDownloadProgress: (progress: DownloadProgress) => void;
 }
@@ -63,9 +64,22 @@ export const useModelsStore = create<ModelsState>((set) => ({
 
       set((s) => ({
         localModels: s.localModels.filter((m) => m.id !== modelId),
+        // Also remove from download queue if present
+        downloadQueue: s.downloadQueue.filter((d) => d.modelId !== modelId && d.fileName !== modelId),
       }));
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to delete model' });
+    }
+  },
+
+  cancelDownload: async (fileName) => {
+    try {
+      await window.api.invoke('models:cancel-download', { fileName });
+      set((s) => ({
+        downloadQueue: s.downloadQueue.filter((d) => d.fileName !== fileName),
+      }));
+    } catch {
+      // Ignore cancel errors
     }
   },
 

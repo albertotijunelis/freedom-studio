@@ -53,6 +53,7 @@ jobs:
             apps/desktop/dist/*.dmg
             apps/desktop/dist/*.AppImage
             apps/desktop/dist/*.deb
-          draft: true
+          draft: false
+          prerelease: ${{ contains(github.ref_name, 'dev') || contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
