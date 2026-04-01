@@ -348,17 +348,37 @@ function StreamingMessage({ content }: { content: string }): React.JSX.Element {
 }
 
 /* ── Chat Input with Stop button ── */
-function ChatInput({ onSend, onStop, disabled, isRunning }: { onSend: (msg: string) => void; onStop: () => void; disabled: boolean; isRunning: boolean }): React.JSX.Element {
+function ChatInput({ onSend, onStop, disabled, isRunning, isRunningOtherChat }: { onSend: (msg: string) => void; onStop: () => void; disabled: boolean; isRunning: boolean; isRunningOtherChat: boolean }): React.JSX.Element {
   const [input, setInput] = useState('');
+  const blocked = disabled || isRunning || isRunningOtherChat;
 
   const handleSend = useCallback(() => {
-    if (!input.trim() || disabled) return;
+    if (!input.trim() || blocked) return;
     onSend(input.trim());
     setInput('');
-  }, [input, disabled, onSend]);
+  }, [input, blocked, onSend]);
 
   return (
     <div className="border-t p-3" style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-dark)' }}>
+      {isRunningOtherChat && (
+        <div className="flex items-center justify-between mb-2 px-2 py-1.5 rounded" style={{ background: 'rgba(255, 204, 0, 0.08)', border: '1px solid rgba(255, 204, 0, 0.2)' }}>
+          <span className="text-xs" style={{ color: 'var(--accent-yellow)', fontFamily: "'JetBrains Mono', monospace" }}>
+            ⏳ Model is generating in another conversation — stop it first to chat here
+          </span>
+          <button
+            onClick={onStop}
+            className="ml-2 px-3 py-1 rounded text-xs font-bold uppercase cursor-pointer transition-all flex-shrink-0"
+            style={{
+              background: 'rgba(255, 51, 85, 0.15)',
+              color: 'var(--accent-red)',
+              border: '1px solid rgba(255, 51, 85, 0.3)',
+              fontFamily: "'JetBrains Mono', monospace",
+            }}
+          >
+            Stop
+          </button>
+        </div>
+      )}
       <div className="flex items-end gap-2">
         <textarea
           value={input}
@@ -372,11 +392,13 @@ function ChatInput({ onSend, onStop, disabled, isRunning }: { onSend: (msg: stri
           placeholder={
             isRunning
               ? '⏳ Model is generating a response — please wait or click Stop'
-              : disabled
-                ? 'Load a model first...'
-                : 'Type a message... (Shift+Enter for new line)'
+              : isRunningOtherChat
+                ? '⏳ Model busy in another conversation — stop it to chat here'
+                : disabled
+                  ? 'Load a model first...'
+                  : 'Type a message... (Shift+Enter for new line)'
           }
-          disabled={disabled || isRunning}
+          disabled={blocked}
           rows={2}
           className="flex-1 px-3 py-2 rounded text-sm resize-none outline-none custom-scrollbar"
           style={{
@@ -384,9 +406,10 @@ function ChatInput({ onSend, onStop, disabled, isRunning }: { onSend: (msg: stri
             color: 'var(--text-primary)',
             border: '1px solid var(--border-subtle)',
             fontFamily: "'JetBrains Mono', monospace",
+            opacity: blocked ? 0.5 : 1,
           }}
         />
-        {isRunning ? (
+        {(isRunning || isRunningOtherChat) ? (
           <button
             onClick={onStop}
             className="px-4 py-2 rounded text-xs font-bold uppercase cursor-pointer transition-all"
@@ -395,9 +418,10 @@ function ChatInput({ onSend, onStop, disabled, isRunning }: { onSend: (msg: stri
               color: 'var(--accent-red)',
               border: '1px solid rgba(255, 51, 85, 0.3)',
               fontFamily: "'JetBrains Mono', monospace",
+              boxShadow: '0 0 8px rgba(255, 51, 85, 0.2)',
             }}
           >
-            Stop
+            ■ Stop
           </button>
         ) : (
           <button
@@ -619,7 +643,13 @@ export function ChatPage(): React.JSX.Element {
         )}
 
         {/* Input */}
-        <ChatInput onSend={handleSend} onStop={handleStop} disabled={!loadedModel || !activeConversationId} isRunning={isRunning && inferenceConversationId === activeConversationId} />
+        <ChatInput
+          onSend={handleSend}
+          onStop={handleStop}
+          disabled={!loadedModel || !activeConversationId}
+          isRunning={isRunning && inferenceConversationId === activeConversationId}
+          isRunningOtherChat={isRunning && inferenceConversationId !== activeConversationId}
+        />
       </div>
     </div>
   );

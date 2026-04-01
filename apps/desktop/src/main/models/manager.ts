@@ -217,7 +217,28 @@ export class ModelManager {
       throw new Error('Access denied: path outside models directory');
     }
 
-    await unlink(filePath);
+    // Cancel any active download for this file first
+    this.cancelDownload(modelId);
+
+    // Wait briefly for the download stream to close after abort
+    await new Promise((r) => setTimeout(r, 200));
+
+    // Retry delete in case the file handle is still closing
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        await unlink(filePath);
+        return;
+      } catch (err) {
+        const code = (err as NodeJS.ErrnoException).code;
+        if (code === 'EBUSY' || code === 'EPERM') {
+          await new Promise((r) => setTimeout(r, 500));
+          continue;
+        }
+        throw err;
+      }
+    }
+
+    throw new Error('File is still in use. Please wait for the download to finish or try again.');
   }
 
   async verifyChecksum(filePath: string, expectedHash: string): Promise<boolean> {

@@ -14,6 +14,7 @@ const ALLOWED_INVOKE_CHANNELS = [
   'inference:detect-gpu',
   'models:list',
   'models:download',
+  'models:cancel-download',
   'models:delete',
   'models:disk-usage',
   'models:get-info',

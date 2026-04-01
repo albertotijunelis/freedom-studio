@@ -119,19 +119,34 @@ function ModelCard({
 }
 
 /* ── Download Item ── */
-function DownloadItem({ download }: { download: DownloadProgress }): React.JSX.Element {
+function DownloadItem({ download, onCancel }: { download: DownloadProgress; onCancel: () => void }): React.JSX.Element {
   return (
     <div className="glass-panel p-3">
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs truncate" style={{ color: 'var(--text-primary)', fontFamily: "'JetBrains Mono', monospace" }}>
           {download.modelId}
         </span>
-        <span className="text-xs" style={{
-          color: download.status === 'failed' ? 'var(--accent-red)' : 'var(--accent-cyan)',
-          fontFamily: "'JetBrains Mono', monospace",
-        }}>
-          {download.status === 'downloading' ? `${download.percent.toFixed(0)}%` : download.status}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs" style={{
+            color: download.status === 'failed' ? 'var(--accent-red)' : 'var(--accent-cyan)',
+            fontFamily: "'JetBrains Mono', monospace",
+          }}>
+            {download.status === 'downloading' ? `${download.percent.toFixed(0)}%` : download.status}
+          </span>
+          {download.status === 'downloading' && (
+            <button
+              onClick={onCancel}
+              className="text-xs px-2 py-0.5 rounded cursor-pointer transition-all hover:bg-red-500/10"
+              style={{
+                color: 'var(--accent-red)',
+                border: '1px solid rgba(255, 51, 85, 0.3)',
+                fontFamily: "'JetBrains Mono', monospace",
+              }}
+            >
+              Cancel
+            </button>
+          )}
+        </div>
       </div>
       {download.status === 'downloading' && (
         <div className="w-full h-1 rounded-full overflow-hidden" style={{ background: 'var(--bg-surface)' }}>
@@ -147,7 +162,7 @@ function DownloadItem({ download }: { download: DownloadProgress }): React.JSX.E
       )}
       {download.speed && (
         <span className="text-xs mt-1 block" style={{ color: 'var(--text-muted)', fontSize: 10 }}>
-          {download.speed}
+          {download.speed} · ETA: {download.eta}
         </span>
       )}
     </div>
@@ -156,7 +171,7 @@ function DownloadItem({ download }: { download: DownloadProgress }): React.JSX.E
 
 /* ── Main Model Manager Page ── */
 export function ModelManagerPage(): React.JSX.Element {
-  const { localModels, downloadQueue, diskUsage, isLoading, error, importProgress, fetchLocalModels, fetchDiskUsage, deleteModel, importModel } = useModelsStore();
+  const { localModels, downloadQueue, diskUsage, isLoading, error, importProgress, fetchLocalModels, fetchDiskUsage, deleteModel, cancelDownload, importModel } = useModelsStore();
   const { loadedModelPath, loadModel, isLoading: modelLoading, loadError } = useInferenceStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -327,7 +342,7 @@ export function ModelManagerPage(): React.JSX.Element {
           </h3>
           <div className="flex flex-col gap-2">
             {activeDownloads.map((d) => (
-              <DownloadItem key={d.modelId} download={d} />
+              <DownloadItem key={d.modelId} download={d} onCancel={() => cancelDownload(d.fileName)} />
             ))}
           </div>
         </div>

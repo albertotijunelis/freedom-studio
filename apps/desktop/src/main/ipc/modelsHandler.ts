@@ -56,7 +56,17 @@ export function registerModelsHandlers(): void {
   });
 
   ipcMain.handle('models:delete', (_event, args: { modelId: string }) => {
-    return wrapHandler(() => modelManager.deleteModel(args.modelId));
+    return wrapHandler(() => {
+      // Cancel any active download for this model before deleting
+      modelManager.cancelDownload(args.modelId);
+      return modelManager.deleteModel(args.modelId);
+    });
+  });
+
+  ipcMain.handle('models:cancel-download', (_event, args: { fileName: string }) => {
+    return wrapHandler(() => {
+      modelManager.cancelDownload(args.fileName);
+    });
   });
 
   ipcMain.handle('models:disk-usage', () => {
