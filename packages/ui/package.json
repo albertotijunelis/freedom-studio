@@ -1,6 +1,6 @@
 {
   "name": "@freedom-studio/ui",
-  "version": "0.3.0-dev",
+  "version": "0.3.1-dev",
   "private": true,
   "description": "Shared design system and UI components for Freedom Studio",
   "license": "GPL-3.0-or-later",

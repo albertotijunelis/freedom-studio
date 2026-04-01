@@ -52,6 +52,8 @@ const ALLOWED_INVOKE_CHANNELS = [
   'hf:search',
   'hf:get-files',
   'hf:download',
+  'file:save-dialog',
+  'file:save-all-dialog',
 ] as const;
 
 const ALLOWED_ON_CHANNELS = [

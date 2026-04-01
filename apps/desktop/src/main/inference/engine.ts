@@ -127,12 +127,17 @@ export class InferenceEngine {
         maxTokens: params.maxTokens,
         stopTrigger: params.stop?.length ? params.stop : undefined,
         signal: this.abortController.signal,
-        onTextChunk: (text: string) => {
-          tokensGenerated++;
-          this.totalTokensGenerated++;
+        // Count actual tokens via onToken (fires per real token, not per text chunk)
+        onToken: (tokens: unknown) => {
+          const count = Array.isArray(tokens) ? tokens.length : 1;
+          tokensGenerated += count;
+          this.totalTokensGenerated += count;
           // Start timing from first output token — excludes prompt evaluation time
           if (!firstTokenTime) firstTokenTime = Date.now();
-          const elapsed = (Date.now() - firstTokenTime) / 1000;
+        },
+        // Stream decoded text to the UI — use token count from onToken for accurate tok/s
+        onTextChunk: (text: string) => {
+          const elapsed = firstTokenTime ? (Date.now() - firstTokenTime) / 1000 : 0;
           const tokensPerSecond = elapsed > 0 ? tokensGenerated / elapsed : tokensGenerated;
 
           onToken(text, false, { tokensGenerated, tokensPerSecond });

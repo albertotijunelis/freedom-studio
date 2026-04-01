@@ -75,6 +75,11 @@ All IPC channels go through a preload script whitelist — only explicitly allow
 4. Tokens accumulated in store → rendered in real-time
 5. Final response saved via IPC `chat:add-message`
 
+### File Save Flow (Code Blocks)
+1. User clicks "Save" on a code block in chat → IPC `file:save-dialog`
+2. Main process opens native Save dialog with language-aware file extension
+3. User picks path → content written to disk via `fs.writeFile`
+
 ### Model Loading Flow
 1. User selects model → InferenceStore `loadModel()`
 2. IPC `inference:load-model` → InferenceEngine → node-llama-cpp

@@ -21,12 +21,19 @@ export function App(): React.JSX.Element {
     loadSettings();
   }, [checkSetupStatus, loadSettings]);
 
-  // Restore last loaded model after setup is confirmed and app is unlocked
+  // Restore last loaded model after setup is confirmed, app is unlocked,
+  // AND settings have been loaded from DB (so gpuLayers is correct).
   useEffect(() => {
     if (isSetupComplete && !isLocked) {
-      restoreLastModel();
+      // Wait for settings to finish loading before restoring model,
+      // otherwise defaultGpuLayers is 0 (CPU-only) and inference is ~50x slower.
+      const waitForSettings = async (): Promise<void> => {
+        await loadSettings();
+        restoreLastModel();
+      };
+      waitForSettings();
     }
-  }, [isSetupComplete, isLocked, restoreLastModel]);
+  }, [isSetupComplete, isLocked, restoreLastModel, loadSettings]);
 
   // Apply theme class to document root
   useEffect(() => {
