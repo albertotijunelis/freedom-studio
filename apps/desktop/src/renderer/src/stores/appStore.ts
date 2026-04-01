@@ -38,6 +38,16 @@ export const useAppStore = create<AppState>((set) => ({
 
   checkSetupStatus: async () => {
     try {
+      // First check if the DB is deferred (dbkey encrypted, master password not yet entered).
+      // If so, setup was already completed — we just need the user to unlock.
+      const pendingResult = await window.api.invoke('db:is-pending-unlock') as {
+        success: boolean; data?: boolean;
+      };
+      if (pendingResult.success && pendingResult.data === true) {
+        set({ isSetupComplete: true, isLocked: true, isCheckingSetup: false });
+        return;
+      }
+
       const result = await window.api.invoke('settings:get', { key: 'setupComplete' }) as {
         success: boolean; data?: string | null;
       };

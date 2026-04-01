@@ -69,4 +69,9 @@ export function registerChatHandlers(): void {
   ipcMain.handle('settings:set', (_event, args: { key: string; value: string }) => {
     return wrapHandler(() => databaseManager.setSetting(args.key, args.value));
   });
+
+  // Database status
+  ipcMain.handle('db:is-pending-unlock', () => {
+    return wrapHandler(() => databaseManager.isPendingUnlock());
+  });
 }

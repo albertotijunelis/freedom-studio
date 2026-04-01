@@ -48,6 +48,7 @@ const ALLOWED_INVOKE_CHANNELS = [
   'chat:create-system-prompt',
   'settings:get',
   'settings:set',
+  'db:is-pending-unlock',
   'hf:search',
   'hf:get-files',
   'hf:download',
