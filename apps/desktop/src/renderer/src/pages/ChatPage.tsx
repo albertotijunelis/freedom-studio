@@ -360,25 +360,6 @@ function ChatInput({ onSend, onStop, disabled, isRunning, isRunningOtherChat }: 
 
   return (
     <div className="border-t p-3" style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-dark)' }}>
-      {isRunningOtherChat && (
-        <div className="flex items-center justify-between mb-2 px-2 py-1.5 rounded" style={{ background: 'rgba(255, 204, 0, 0.08)', border: '1px solid rgba(255, 204, 0, 0.2)' }}>
-          <span className="text-xs" style={{ color: 'var(--accent-yellow)', fontFamily: "'JetBrains Mono', monospace" }}>
-            ⏳ Model is generating in another conversation — stop it first to chat here
-          </span>
-          <button
-            onClick={onStop}
-            className="ml-2 px-3 py-1 rounded text-xs font-bold uppercase cursor-pointer transition-all flex-shrink-0"
-            style={{
-              background: 'rgba(255, 51, 85, 0.15)',
-              color: 'var(--accent-red)',
-              border: '1px solid rgba(255, 51, 85, 0.3)',
-              fontFamily: "'JetBrains Mono', monospace",
-            }}
-          >
-            Stop
-          </button>
-        </div>
-      )}
       <div className="flex items-end gap-2">
         <textarea
           value={input}
@@ -391,9 +372,9 @@ function ChatInput({ onSend, onStop, disabled, isRunning, isRunningOtherChat }: 
           }}
           placeholder={
             isRunning
-              ? '⏳ Model is generating a response — please wait or click Stop'
+              ? 'Model is generating a response — click Stop or wait...'
               : isRunningOtherChat
-                ? '⏳ Model busy in another conversation — stop it to chat here'
+                ? 'Model busy in another conversation — click Stop to chat here'
                 : disabled
                   ? 'Load a model first...'
                   : 'Type a message... (Shift+Enter for new line)'

@@ -112,7 +112,7 @@ export class InferenceEngine {
     this.isRunning = true;
     this.abortController = new AbortController();
     let tokensGenerated = 0;
-    const startTime = Date.now();
+    let firstTokenTime: number | null = null;
 
     try {
       const session = this.session as {
@@ -130,29 +130,33 @@ export class InferenceEngine {
         onTextChunk: (text: string) => {
           tokensGenerated++;
           this.totalTokensGenerated++;
-          const elapsed = (Date.now() - startTime) / 1000;
-          const tokensPerSecond = elapsed > 0 ? tokensGenerated / elapsed : 0;
+          // Start timing from first output token — excludes prompt evaluation time
+          if (!firstTokenTime) firstTokenTime = Date.now();
+          const elapsed = (Date.now() - firstTokenTime) / 1000;
+          const tokensPerSecond = elapsed > 0 ? tokensGenerated / elapsed : tokensGenerated;
 
           onToken(text, false, { tokensGenerated, tokensPerSecond });
         },
       });
 
+      const finalElapsed = firstTokenTime ? (Date.now() - firstTokenTime) / 1000 : 1;
       onToken('', true, {
         tokensGenerated,
-        tokensPerSecond: tokensGenerated / ((Date.now() - startTime) / 1000),
+        tokensPerSecond: tokensGenerated / (finalElapsed || 1),
       });
     } catch (error) {
+      const finalElapsed = firstTokenTime ? (Date.now() - firstTokenTime) / 1000 : 1;
       if (error instanceof Error && error.name === 'AbortError') {
         onToken('', true, {
           tokensGenerated,
-          tokensPerSecond: tokensGenerated / ((Date.now() - startTime) / 1000),
+          tokensPerSecond: tokensGenerated / (finalElapsed || 1),
         });
         return;
       }
       // Always fire done on error so the renderer can clean up
       onToken('', true, {
         tokensGenerated,
-        tokensPerSecond: tokensGenerated / ((Date.now() - startTime) / 1000 || 1),
+        tokensPerSecond: tokensGenerated / (finalElapsed || 1),
       });
       throw error;
     } finally {
@@ -186,39 +190,44 @@ export class InferenceEngine {
       throw new Error('Last message must be from user');
     }
 
-    // Only reset the session history when switching to a different conversation.
-    // When continuing the same conversation, the LlamaChatSession already holds
-    // the full KV cache from previous turns — calling setChatHistory would
-    // invalidate it and force a full re-evaluation of all tokens (causing the
-    // massive slowdown from 30 tok/s to <1 tok/s).
+    // Only reset the session history when switching to a different conversation
+    // AND the new conversation has actual conversation history (user+assistant turns).
+    // For new conversations with no history (or just a system prompt), skip
+    // setChatHistory entirely — it would wipe the KV cache for no benefit.
     const needsHistoryReset = conversationId !== this.activeConversationId;
 
     if (needsHistoryReset) {
       const historyMessages = messages.slice(0, -1);
 
-      // Build chat history in node-llama-cpp format
-      const chatHistory: Array<{ type: string; text?: string; response?: string[] }> = [];
+      // Check if there's actual conversation history (not just system prompt)
+      const hasConversationTurns = historyMessages.some((m) => m.role === 'user' || m.role === 'assistant');
 
-      for (const msg of historyMessages) {
-        if (msg.role === 'system') {
-          chatHistory.push({ type: 'system', text: msg.content });
-        } else if (msg.role === 'user') {
-          chatHistory.push({ type: 'user', text: msg.content });
-        } else if (msg.role === 'assistant') {
-          chatHistory.push({ type: 'model', response: [msg.content] });
+      if (hasConversationTurns) {
+        // Build chat history in node-llama-cpp format
+        const chatHistory: Array<{ type: string; text?: string; response?: string[] }> = [];
+
+        for (const msg of historyMessages) {
+          if (msg.role === 'system') {
+            chatHistory.push({ type: 'system', text: msg.content });
+          } else if (msg.role === 'user') {
+            chatHistory.push({ type: 'user', text: msg.content });
+          } else if (msg.role === 'assistant') {
+            chatHistory.push({ type: 'model', response: [msg.content] });
+          }
         }
-      }
 
-      try {
-        const session = this.session as {
-          setChatHistory: (history: unknown[]) => void;
-          prompt: (text: string, options: Record<string, unknown>) => Promise<string>;
-        };
-        session.setChatHistory(chatHistory);
-        console.log('[InferenceEngine] Chat history reset for conversation:', conversationId);
-      } catch (err) {
-        console.warn('[InferenceEngine] setChatHistory not supported, falling back to plain stream:', err);
-        return this.stream(lastMessage.content, params, onToken);
+        try {
+          const session = this.session as {
+            setChatHistory: (history: unknown[]) => void;
+            prompt: (text: string, options: Record<string, unknown>) => Promise<string>;
+          };
+          session.setChatHistory(chatHistory);
+          console.log('[InferenceEngine] Chat history reset for conversation switch');
+        } catch (err) {
+          console.warn('[InferenceEngine] setChatHistory not supported, falling back to plain stream:', err);
+          this.activeConversationId = conversationId ?? null;
+          return this.stream(lastMessage.content, params, onToken);
+        }
       }
 
       this.activeConversationId = conversationId ?? null;

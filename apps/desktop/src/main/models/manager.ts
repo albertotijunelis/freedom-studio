@@ -110,6 +110,7 @@ export class ModelManager {
 
     const controller = new AbortController();
     this.activeDownloads.set(fileName, controller);
+    let fileStream: ReturnType<typeof createWriteStream> | null = null;
 
     try {
       const fetchOptions: RequestInit = {
@@ -141,7 +142,7 @@ export class ModelManager {
       let downloadedBytes = 0;
       const startTime = Date.now();
 
-      const fileStream = createWriteStream(filePath);
+      fileStream = createWriteStream(filePath);
       const reader = response.body?.getReader();
 
       if (!reader) {
@@ -158,7 +159,7 @@ export class ModelManager {
 
         // Handle backpressure — wait for drain if write buffer is full
         if (!canContinue) {
-          await new Promise<void>((r) => fileStream.once('drain', r));
+          await new Promise<void>((r) => fileStream!.once('drain', r));
         }
 
         const elapsed = (Date.now() - startTime) / 1000;
@@ -178,8 +179,9 @@ export class ModelManager {
       }
 
       await new Promise<void>((resolve, reject) => {
-        fileStream.end((err?: Error) => (err ? reject(err) : resolve()));
+        fileStream!.end((err?: Error) => (err ? reject(err) : resolve()));
       });
+      fileStream = null; // Mark as closed
 
       onProgress({
         modelId: fileName,
@@ -194,8 +196,14 @@ export class ModelManager {
 
       return filePath;
     } catch (err) {
-      // Clean up partial file on failed download
-      try { await unlink(filePath); } catch { /* ignore if file doesn't exist */ }
+      // Close file stream before attempting to delete the partial file
+      if (fileStream) {
+        await new Promise<void>((r) => { fileStream!.destroy(); fileStream!.once('close', r); });
+      }
+      // Clean up partial file — retry briefly if handle is still releasing
+      for (let i = 0; i < 3; i++) {
+        try { await unlink(filePath); break; } catch { await new Promise((r) => setTimeout(r, 300)); }
+      }
       throw err;
     } finally {
       this.activeDownloads.delete(fileName);

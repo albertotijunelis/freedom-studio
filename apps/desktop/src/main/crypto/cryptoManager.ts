@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { join } from 'node:path';
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, unlinkSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { app } from 'electron';
 import {
@@ -11,10 +11,8 @@ import {
   generateKey,
   generateApiKey,
   generateSelfSignedCert,
-  saveCertToDir,
-  loadCertFromDir,
 } from '@freedom-studio/crypto-core';
-import type { EncryptedPayload } from '@freedom-studio/crypto-core';
+import type { EncryptedPayload, TLSCertPair } from '@freedom-studio/crypto-core';
 import type { MasterPasswordStatus, TLSCertInfo } from '@freedom-studio/types';
 
 interface StoredConfig {
@@ -27,12 +25,15 @@ export class CryptoManager {
   private configDir: string;
   private certsDir: string;
   private lastUnlockedAt: number | null = null;
+  /** Ephemeral TLS cert/key — generated in memory each launch, never written to disk */
+  private ephemeralCert: TLSCertPair | null = null;
 
   constructor() {
     const userDataPath = app?.getPath?.('userData') || join(process.env.APPDATA || process.env.HOME || '', 'freedom-studio');
     this.configDir = join(userDataPath, 'crypto');
     this.certsDir = join(userDataPath, 'certs');
     mkdirSync(this.configDir, { recursive: true });
+    // certsDir kept for potential future CA cert storage (mTLS), but server.key is no longer persisted
     mkdirSync(this.certsDir, { recursive: true });
   }
 
@@ -79,6 +80,9 @@ export class CryptoManager {
         // Silent fallback — file is still usable
       }
     }
+
+    // Encrypt the plaintext dbkey now that we have a derived key
+    this.encryptDbKeyIfNeeded();
   }
 
   async unlock(masterPassword: string): Promise<boolean> {
@@ -151,18 +155,78 @@ export class CryptoManager {
     return generateApiKey();
   }
 
+  // ─── Database Key Encryption ───
+
+  /**
+   * Encrypt the plaintext dbkey file with the derived key (AES-256-GCM).
+   * The GCM auth tag provides tamper detection — if the encrypted file is
+   * modified on disk, decryption will fail with an authentication error.
+   * Called after setup() to protect the dbkey at rest.
+   */
+  encryptDbKeyIfNeeded(): void {
+    if (!this.derivedKey) return;
+
+    const dbKeyPath = join(this.configDir, 'dbkey');
+    const encDbKeyPath = join(this.configDir, 'dbkey.enc');
+
+    if (!existsSync(dbKeyPath)) return;  // No plaintext key to encrypt
+    if (existsSync(encDbKeyPath)) return; // Already encrypted
+
+    const dbKeyHex = readFileSync(dbKeyPath, 'utf-8').trim();
+    const encrypted = encrypt(dbKeyHex, this.derivedKey);
+    writeFileSync(encDbKeyPath, JSON.stringify(encrypted), { encoding: 'utf-8', mode: 0o600 });
+
+    // Restrict permissions on Windows
+    if (process.platform === 'win32') {
+      try {
+        const username = process.env.USERNAME || '';
+        if (username) {
+          execSync(`icacls "${encDbKeyPath}" /inheritance:r /grant:r "${username}:(R,W)"`, { stdio: 'ignore' });
+        }
+      } catch {
+        // Silent fallback
+      }
+    }
+
+    // Securely delete plaintext key
+    unlinkSync(dbKeyPath);
+    console.log('[Crypto] Database key encrypted with master password — plaintext key removed');
+  }
+
+  /**
+   * Decrypt the encrypted dbkey file using the derived key.
+   * AES-256-GCM auth tag ensures integrity — tampered files will throw.
+   */
+  decryptDbKey(): string | null {
+    const encDbKeyPath = join(this.configDir, 'dbkey.enc');
+
+    if (!existsSync(encDbKeyPath)) return null;
+    if (!this.derivedKey) return null;
+
+    const payload: EncryptedPayload = JSON.parse(readFileSync(encDbKeyPath, 'utf-8'));
+    return decrypt(payload, this.derivedKey);
+  }
+
+  /**
+   * Check whether the dbkey is stored in encrypted form.
+   */
+  hasEncryptedDbKey(): boolean {
+    return existsSync(join(this.configDir, 'dbkey.enc'));
+  }
+
   async generateTLSCert(): Promise<TLSCertInfo> {
+    // Generate ephemeral TLS cert in memory — never touches disk
     const certPair = await generateSelfSignedCert({
       commonName: 'Freedom Studio Local',
       organization: 'Freedom Studio',
-      validityDays: 365,
+      validityDays: 1, // Ephemeral — regenerated each launch
     });
 
-    const { certPath, keyPath } = saveCertToDir(this.certsDir, certPair);
+    this.ephemeralCert = certPair;
 
     return {
-      certPath,
-      keyPath,
+      certPath: '', // Not on disk
+      keyPath: '',  // Not on disk
       fingerprint: certPair.fingerprint,
       validFrom: certPair.validFrom,
       validTo: certPair.validTo,
@@ -171,7 +235,17 @@ export class CryptoManager {
     };
   }
 
+  /**
+   * Get the ephemeral TLS cert/key as PEM strings for use in HTTPS server options.
+   * Returns null if no cert has been generated yet.
+   */
+  getEphemeralTLSCert(): { cert: string; key: string } | null {
+    if (!this.ephemeralCert) return null;
+    return { cert: this.ephemeralCert.cert, key: this.ephemeralCert.key };
+  }
+
   getTLSCertPaths(): { certPath: string; keyPath: string } | null {
+    // Legacy — check for old on-disk certs to allow migration/cleanup
     const certPath = join(this.certsDir, 'server.crt');
     const keyPath = join(this.certsDir, 'server.key');
 

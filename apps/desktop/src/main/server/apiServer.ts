@@ -11,8 +11,10 @@ import type { RequestLog } from '@freedom-studio/types';
 
 interface ServerOptions {
   port: number;
-  certPath: string;
-  keyPath: string;
+  certPem?: string;
+  keyPem?: string;
+  certPath?: string;
+  keyPath?: string;
   apiKeys: string[];
   mtlsEnabled?: boolean;
   caCertPath?: string;
@@ -33,9 +35,13 @@ export class APIServer {
     }
 
     const tlsOptions: Record<string, unknown> = {
-      cert: readFileSync(options.certPath, 'utf-8'),
-      key: readFileSync(options.keyPath, 'utf-8'),
+      cert: options.certPem || (options.certPath ? readFileSync(options.certPath, 'utf-8') : undefined),
+      key: options.keyPem || (options.keyPath ? readFileSync(options.keyPath, 'utf-8') : undefined),
     };
+
+    if (!tlsOptions.cert || !tlsOptions.key) {
+      throw new Error('TLS certificate and key are required');
+    }
 
     if (options.mtlsEnabled && options.caCertPath) {
       tlsOptions.ca = readFileSync(options.caCertPath, 'utf-8');

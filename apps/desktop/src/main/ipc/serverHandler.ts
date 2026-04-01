@@ -24,21 +24,22 @@ function wrapHandler<T>(fn: () => Promise<T> | T): Promise<IPCResult<T>> {
 export function registerServerHandlers(): void {
   ipcMain.handle('server:start', (_event, args: { port: number; apiKeys?: string[] }) => {
     return wrapHandler(async () => {
-      let certPaths = cryptoManager.getTLSCertPaths();
+      // Prefer ephemeral in-memory TLS cert (never touches disk)
+      let ephemeralCert = cryptoManager.getEphemeralTLSCert();
 
-      if (!certPaths) {
+      if (!ephemeralCert) {
         await cryptoManager.generateTLSCert();
-        certPaths = cryptoManager.getTLSCertPaths();
+        ephemeralCert = cryptoManager.getEphemeralTLSCert();
       }
 
-      if (!certPaths) {
+      if (!ephemeralCert) {
         throw new Error('Failed to generate TLS certificates');
       }
 
       await apiServer.start({
         port: args.port,
-        certPath: certPaths.certPath,
-        keyPath: certPaths.keyPath,
+        certPem: ephemeralCert.cert,
+        keyPem: ephemeralCert.key,
         apiKeys: args.apiKeys || [],
       });
 
