@@ -161,13 +161,17 @@
 
 ### Download Installer
 
-> Installers will be available on the [Releases](https://github.com/albertotijunelis/freedom-studio/releases) page once v0.1.0 launches.
+Grab the latest release from the [Releases](https://github.com/albertotijunelis/freedom-studio/releases) page.
 
-| Platform | Format |
-|---|---|
-| Windows | NSIS installer (`.exe`) |
-| macOS | Signed DMG |
-| Linux | AppImage, `.deb`, `.rpm` |
+| Platform | Format | File |
+|---|---|---|
+| Windows | NSIS installer | `Freedom.Studio-*-win-x64.exe` |
+| macOS (Apple Silicon) | DMG | `Freedom.Studio-*-mac-arm64.dmg` |
+| macOS (Intel) | DMG | `Freedom.Studio-*-mac-x64.dmg` |
+| Linux | AppImage | `Freedom.Studio-*-linux-x86_64.AppImage` |
+| Linux | Debian | `Freedom.Studio-*-linux-amd64.deb` |
+
+> **Note:** Installers are currently unsigned. Windows may show a SmartScreen warning — click "More info" → "Run anyway".
 
 ### Build from Source
 
@@ -279,13 +283,16 @@ Full security details: [SECURITY.md](SECURITY.md)
 | Done | System prompt templates + persona profiles |
 | Done | GitHub Actions CI/CD + multi-platform release pipeline |
 | Done | Save AI-generated code blocks to disk (native file dialog) |
+| Done | Auto-update via GitHub Releases (electron-updater) |
+| Done | GPU auto-detection (CUDA, Metal, Vulkan) |
+| Done | Smart scroll in chat (only auto-scrolls when at bottom) |
 | Planned | Tor binary bundling + circuit visualization |
 | Planned | Plugin/extension system |
 | Planned | Model quantization tool (GGUF conversion) |
 | Planned | Multi-modal support (vision models) |
 | Planned | RAG pipeline (local document Q&A) |
 | Planned | Voice input/output |
-| Planned | Signed installers + auto-update |
+| Planned | Signed installers (code signing certificates) |
 
 ---
 
@@ -302,7 +309,7 @@ Full security details: [SECURITY.md](SECURITY.md)
 | API Server | Express.js (HTTPS) |
 | Encryption | SQLCipher (full DB) + AES-256-GCM (field-level) + Argon2id KDF + TLS/mTLS |
 | Database | SQLite + SQLCipher (AES-256 full-disk encryption) |
-| Tor | Bundled tor binary + socks-proxy-agent |
+| Tor | External tor binary + socks-proxy-agent |
 | Installer | electron-builder |
 | Monorepo | Turborepo + pnpm |
 | Testing | Vitest + Playwright |
