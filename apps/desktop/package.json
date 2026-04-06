@@ -1,6 +1,6 @@
 {
   "name": "@freedom-studio/desktop",
-  "version": "0.3.1-dev",
+  "version": "0.3.2-dev",
   "description": "Freedom Studio — Local-first AI model runner",
   "author": "Alberto Tijunelis Neto <albertotijunelis@gmail.com>",
   "license": "GPL-3.0-or-later",
@@ -70,7 +70,7 @@
     "files": [
       "out/**/*"
     ],
-    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "artifactName": "Freedom-Studio-${version}-${os}-${arch}.${ext}",
     "publish": {
       "provider": "github",
       "owner": "albertotijunelis",
