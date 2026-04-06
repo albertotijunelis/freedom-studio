@@ -32,29 +32,63 @@ export class InferenceEngine {
   async loadModel(modelPath: string, config: ModelConfig): Promise<void> {
     await this.unload();
 
+    let step = 'importing node-llama-cpp';
     try {
       console.log('[InferenceEngine] Loading model...');
 
       const { getLlama, LlamaChatSession } = await import('node-llama-cpp');
       console.log('[InferenceEngine] node-llama-cpp imported, initializing llama...');
 
+      step = 'initializing llama runtime';
       const llama = await getLlama();
       console.log('[InferenceEngine] Llama initialized, loading model file...');
 
+      step = 'loading model file';
       const model = await llama.loadModel({
         modelPath,
         gpuLayers: config.gpuLayers,
       });
       console.log('[InferenceEngine] Model loaded, creating context...');
 
-      const context = await model.createContext({
-        contextSize: config.contextSize,
-        batchSize: config.batchSize,
-        threads: config.threads,
-      });
-      console.log('[InferenceEngine] Context created, starting chat session...');
+      // Try the requested context size first; if it fails (e.g. not enough memory),
+      // retry with progressively smaller context sizes down to 2048
+      step = 'creating context';
+      let context: unknown = null;
+      let usedContextSize = config.contextSize;
+      const contextSizesToTry = [config.contextSize];
+      for (const fallback of [4096, 2048]) {
+        if (fallback < config.contextSize) contextSizesToTry.push(fallback);
+      }
 
-      const session = new LlamaChatSession({ contextSequence: context.getSequence() });
+      for (const ctxSize of contextSizesToTry) {
+        try {
+          context = await (model as { createContext: (opts: Record<string, unknown>) => Promise<unknown> }).createContext({
+            contextSize: ctxSize,
+            batchSize: config.batchSize,
+            threads: config.threads,
+          });
+          usedContextSize = ctxSize;
+          break;
+        } catch (ctxError) {
+          console.warn(`[InferenceEngine] Context creation failed with size ${ctxSize}:`, ctxError);
+          if (ctxSize === contextSizesToTry[contextSizesToTry.length - 1]) {
+            throw ctxError; // Last attempt, rethrow
+          }
+          console.log(`[InferenceEngine] Retrying with smaller context size...`);
+        }
+      }
+
+      if (usedContextSize !== config.contextSize) {
+        console.log(`[InferenceEngine] Context created with reduced size: ${usedContextSize} (requested: ${config.contextSize})`);
+      } else {
+        console.log('[InferenceEngine] Context created successfully');
+      }
+
+      step = 'creating chat session';
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const session = new LlamaChatSession({
+        contextSequence: (context as any).getSequence(),
+      });
 
       this.model = model;
       this.session = session;
@@ -64,8 +98,9 @@ export class InferenceEngine {
       console.log('[InferenceEngine] Model ready:', modelPath);
     } catch (error) {
       this.isLoaded = false;
-      console.error('[InferenceEngine] Failed to load model:', error);
-      throw new Error(`Failed to load model: ${error instanceof Error ? error.message : String(error)}`);
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[InferenceEngine] Failed at step "${step}":`, error);
+      throw new Error(`Failed to load model (${step}): ${message}`);
     }
   }
 
